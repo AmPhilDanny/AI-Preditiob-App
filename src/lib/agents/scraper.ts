@@ -1,4 +1,7 @@
+import { APIFootballService } from "../services/api-football";
+
 export interface MatchData {
+  id?: number;
   homeTeam: string;
   awayTeam: string;
   league: string;
@@ -7,30 +10,53 @@ export interface MatchData {
     draw: number;
     away: number;
   };
-  stats?: any;
+  apiStats?: any;
+  scrapedOdds?: any;
 }
 
 export class ScraperAgent {
-  constructor() {}
+  private apiService?: APIFootballService;
 
-  async fetchMatches(url: string): Promise<MatchData[]> {
-    console.log(`Scraping data from: ${url}`);
+  constructor(apiKey?: string) {
+    if (apiKey) {
+      this.apiService = new APIFootballService(apiKey);
+    }
+  }
+
+  async fetchHybridData(bettingUrl: string): Promise<MatchData[]> {
+    console.log("Starting hybrid data collection...");
     
-    // In a real implementation, we would use fetch + cheerio or playwright here
-    // For now, returning mock data to demonstrate the flow
-    return [
-      {
-        homeTeam: "Arsenal",
-        awayTeam: "Man City",
-        league: "Premier League",
-        odds: { home: 2.10, draw: 3.40, away: 3.20 }
-      },
-      {
-        homeTeam: "Real Madrid",
-        awayTeam: "Barcelona",
-        league: "La Liga",
-        odds: { home: 1.95, draw: 3.60, away: 3.80 }
-      }
+    let fixtures: any[] = [];
+    if (this.apiService) {
+      console.log("Fetching structured data from API-Football...");
+      const response = await this.apiService.getTodayFixtures();
+      fixtures = response.response || [];
+    }
+
+    console.log(`Scraping real-time odds from: ${bettingUrl}`);
+    // Mock scraping logic - in production this would use Playwright
+    const scrapedMatches = [
+      { name: "Arsenal vs Man City", homeOdd: 2.05, drawOdd: 3.40, awayOdd: 3.20 },
+      { name: "Real Madrid vs Barcelona", homeOdd: 1.95, drawOdd: 3.60, awayOdd: 3.80 }
     ];
+
+    // Merge API data with Scraped data
+    return scrapedMatches.map(scraped => {
+      const apiMatch = fixtures.find(f => 
+        `${f.teams.home.name} vs ${f.teams.away.name}` === scraped.name
+      );
+
+      return {
+        homeTeam: scraped.name.split(' vs ')[0],
+        awayTeam: scraped.name.split(' vs ')[1],
+        league: apiMatch?.league?.name || "Unknown",
+        odds: {
+          home: scraped.homeOdd,
+          draw: scraped.drawOdd,
+          away: scraped.awayOdd
+        },
+        apiStats: apiMatch || null
+      };
+    });
   }
 }
