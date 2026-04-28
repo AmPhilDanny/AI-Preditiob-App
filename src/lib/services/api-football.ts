@@ -1,26 +1,21 @@
-export interface APIFootballConfig {
-  apiKey: string;
-  baseUrl: string;
-}
+import { FootballApiService, NormalizedFixture } from "./football-api.interface";
 
-export class APIFootballService {
-  private config: APIFootballConfig;
+export class APIFootballService implements FootballApiService {
+  private apiKey: string;
+  private baseUrl: string = 'https://v3.football.api-sports.io';
 
   constructor(apiKey: string) {
-    this.config = {
-      apiKey: apiKey,
-      baseUrl: 'https://v3.football.api-sports.io'
-    };
+    this.apiKey = apiKey;
   }
 
   private async fetchFromAPI(endpoint: string, params: Record<string, string> = {}) {
-    const url = new URL(`${this.config.baseUrl}/${endpoint}`);
+    const url = new URL(`${this.baseUrl}/${endpoint}`);
     Object.entries(params).forEach(([key, value]) => url.searchParams.append(key, value));
 
     const response = await fetch(url.toString(), {
       method: 'GET',
       headers: {
-        'x-rapidapi-key': this.config.apiKey,
+        'x-rapidapi-key': this.apiKey,
         'x-rapidapi-host': 'v3.football.api-sports.io'
       }
     });
@@ -32,27 +27,25 @@ export class APIFootballService {
     return response.json();
   }
 
-  async getTodayFixtures(leagueId?: number) {
+  async getTodayFixtures(): Promise<NormalizedFixture[]> {
     const today = new Date().toISOString().split('T')[0];
-    return this.fetchFromAPI('fixtures', { 
-      date: today,
-      ...(leagueId && { league: leagueId.toString() })
-    });
+    const data = await this.fetchFromAPI('fixtures', { date: today });
+    
+    return (data.response || []).map((f: any) => ({
+      homeTeam: f.teams.home.name,
+      awayTeam: f.teams.away.name,
+      league: f.league.name,
+      date: f.fixture.date,
+      externalId: f.fixture.id.toString()
+    }));
   }
 
-  async getTeamStats(teamId: number, leagueId: number, season: number) {
-    return this.fetchFromAPI('teams/statistics', {
-      team: teamId.toString(),
-      league: leagueId.toString(),
-      season: season.toString()
-    });
-  }
-
-  async getH2H(h2h: string) {
-    return this.fetchFromAPI('fixtures/headtohead', { h2h });
-  }
-
-  async getPredictions(fixtureId: number) {
-    return this.fetchFromAPI('predictions', { fixture: fixtureId.toString() });
+  async testConnection(): Promise<boolean> {
+    try {
+      const data = await this.fetchFromAPI('status');
+      return !!data.response;
+    } catch (e) {
+      return false;
+    }
   }
 }

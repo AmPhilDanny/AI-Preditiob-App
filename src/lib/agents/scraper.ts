@@ -1,8 +1,11 @@
-import { APIFootballService } from "../services/api-football";
 import { configService } from "../services/config";
+import { APIFootballService } from "../services/api-football";
+import { FootballDataService } from "../services/football-data";
+import { TheSportsDBService } from "../services/the-sports-db";
+import { FootballApiService, NormalizedFixture } from "../services/football-api.interface";
 
 export interface MatchData {
-  id?: number;
+  id?: string;
   homeTeam: string;
   awayTeam: string;
   league: string;
@@ -18,26 +21,37 @@ export interface MatchData {
 export class ScraperAgent {
   constructor() {}
 
-  async fetchHybridData(): Promise<MatchData[]> {
+  private async getActiveApiService(): Promise<FootballApiService | null> {
     const config = await configService.getConfig();
     
-    // Find the active football API key
-    const activeProvider = Object.values(config.footballApis).find(p => p.enabled);
-    const activeKey = activeProvider?.apiKey;
-    const apiService = activeKey ? new APIFootballService(activeKey) : null;
+    if (config.footballApis.api1.enabled && config.footballApis.api1.apiKey) {
+      return new APIFootballService(config.footballApis.api1.apiKey);
+    }
+    if (config.footballApis.api2.enabled && config.footballApis.api2.apiKey) {
+      return new FootballDataService(config.footballApis.api2.apiKey);
+    }
+    if (config.footballApis.api3.enabled && config.footballApis.api3.apiKey) {
+      return new TheSportsDBService(config.footballApis.api3.apiKey);
+    }
     
-    console.log(`Gathering data from ${config.scrapingUrls.length} sources and Football-API...`);
+    return null;
+  }
+
+  async fetchHybridData(): Promise<MatchData[]> {
+    const apiService = await this.getActiveApiService();
     
-    let fixtures: any[] = [];
+    console.log(`Gathering data and sync with external API...`);
+    
+    let fixtures: NormalizedFixture[] = [];
     if (apiService) {
       try {
-        const response = await apiService.getTodayFixtures();
-        fixtures = response.response || [];
+        fixtures = await apiService.getTodayFixtures();
       } catch (err) {
-        console.error("API-Football fetch failed.");
+        console.error("Football API fetch failed:", err);
       }
     }
 
+    // Default base matches for fallback/demonstration
     const baseMatches = [
       { name: "Arsenal vs Man City", homeOdd: 2.05, drawOdd: 3.40, awayOdd: 3.20, league: "Premier League" },
       { name: "Real Madrid vs Barcelona", homeOdd: 1.95, drawOdd: 3.60, awayOdd: 3.80, league: "La Liga" },
@@ -46,22 +60,31 @@ export class ScraperAgent {
       { name: "Inter vs Milan", homeOdd: 2.20, drawOdd: 3.20, awayOdd: 3.40, league: "Serie A" }
     ];
 
-    return baseMatches.map(scraped => {
-      const apiMatch = fixtures.find(f => 
-        f.teams?.home?.name === scraped.name.split(' vs ')[0]
-      );
-
-      return {
-        homeTeam: scraped.name.split(' vs ')[0],
-        awayTeam: scraped.name.split(' vs ')[1],
-        league: apiMatch?.league?.name || scraped.league,
+    // If API has data, use it. Otherwise use base matches.
+    if (fixtures.length > 0) {
+      return fixtures.map(f => ({
+        id: f.externalId,
+        homeTeam: f.homeTeam,
+        awayTeam: f.awayTeam,
+        league: f.league,
         odds: {
-          home: scraped.homeOdd,
-          draw: scraped.drawOdd,
-          away: scraped.awayOdd
+          home: 1.0 + Math.random() * 2, // Mock odds if not available in specific API
+          draw: 2.0 + Math.random() * 2,
+          away: 2.0 + Math.random() * 3
         },
-        apiStats: apiMatch || null
-      };
-    });
+        apiStats: f
+      }));
+    }
+
+    return baseMatches.map(scraped => ({
+      homeTeam: scraped.name.split(' vs ')[0],
+      awayTeam: scraped.name.split(' vs ')[1],
+      league: scraped.league,
+      odds: {
+        home: scraped.homeOdd,
+        draw: scraped.drawOdd,
+        away: scraped.awayOdd
+      }
+    }));
   }
 }
