@@ -164,7 +164,7 @@ export default function AdminPage() {
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Server size={14} className="shrink-0" />
-              {health?.dbStatus === 'online' ? 'DB Connected' : 'DB Offline'}
+              {health?.database === 'online' ? 'DB Connected' : 'DB Offline'}
             </div>
             <div className="pt-2 border-t border-border">
               <button onClick={load} className="btn-ghost w-full text-xs gap-2 py-1.5">
@@ -220,8 +220,8 @@ export default function AdminPage() {
                           <p className="text-xs text-muted-foreground">Primary cluster</p>
                         </div>
                       </div>
-                      <span className={health?.dbStatus === 'online' ? 'badge badge-green' : 'badge badge-red'}>
-                        {health?.dbStatus || 'checking…'}
+                      <span className={health?.database === 'online' ? 'badge badge-green' : 'badge badge-red'}>
+                        {health?.database || 'checking…'}
                       </span>
                     </div>
                     {config?.aiProviders && Object.entries(config.aiProviders).map(([id, p]: [string, any]) => (

@@ -1,27 +1,40 @@
 import { PrismaClient } from '@prisma/client';
-const seedClient = new PrismaClient();
+
+const prisma = new PrismaClient();
 
 async function main() {
-  const config = await seedClient.systemConfig.upsert({
+  console.log('Seeding system configuration...');
+
+  const config = await prisma.systemConfig.upsert({
     where: { id: 'default' },
     update: {},
     create: {
       id: 'default',
-      scrapingUrls: ['https://www.bet365.com', 'https://www.betway.com'],
-      analystPrompt: "You are an expert football analyst. Your goal is to identify low-risk outcomes (Wins, Goals, Corners) and combine them into high-value slips that match the target odds requested.",
-      scraperPrompt: "You are a master data gatherer. Focus on fetching real-time odds, team news, and market movements.",
-      footballApiKey: process.env.FOOTBALL_API_KEY || '',
-      geminiApiKey: process.env.GEMINI_API_KEY || ''
-    },
+      scrapingUrls: [
+        'https://www.bet365.com',
+        'https://www.betway.com',
+        'https://www.sportybet.com'
+      ],
+      footballApiKey: '',
+      geminiApiKey: '',
+      geminiEnabled: true,
+      grokApiKey: '',
+      grokEnabled: false,
+      mistralApiKey: '',
+      mistralEnabled: false,
+      analystPrompt: "You are an expert football analyst. Your goal is to identify low-risk outcomes and combine them into high-value slips.",
+      scraperPrompt: "You are a master data gatherer. Focus on fetching real-time odds and team news."
+    }
   });
-  console.log('Seed data created:', config);
+
+  console.log('Seed completed successfully:', config);
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error('Seed failed:', e);
     process.exit(1);
   })
   .finally(async () => {
-    await seedClient.$disconnect();
+    await prisma.$disconnect();
   });
