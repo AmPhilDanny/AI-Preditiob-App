@@ -1,77 +1,71 @@
 'use client';
 
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Activity, Brain, CheckCircle, Shield, TrendingUp, AlertTriangle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Activity, 
+  Brain, 
+  CheckCircle, 
+  Shield, 
+  TrendingUp, 
+  AlertTriangle,
+  RefreshCcw,
+  ExternalLink,
+  Target
+} from 'lucide-react';
 
 export default function Dashboard() {
-  const [activeAI, setActiveAI] = useState('Gemini 1.5 Pro');
-  
-  const stats = [
-    { label: 'Daily Accuracy', value: '78.4%', icon: TrendingUp, color: 'text-blue-400' },
-    { label: 'Total Predictions', value: '1,284', icon: Brain, color: 'text-purple-400' },
-    { label: 'System Uptime', value: '99.9%', icon: Activity, color: 'text-green-400' },
-    { label: 'Model Confidence', value: 'High', icon: Shield, color: 'text-orange-400' },
-  ];
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<any>(null);
+  const [activeTargets, setActiveTargets] = useState([2, 5, 10]);
 
-  const predictions = [
-    {
-      id: 1,
-      match: 'Arsenal vs Manchester City',
-      league: 'Premier League',
-      prediction: 'Home Win',
-      odds: 2.05,
-      confidence: 84,
-      ai: 'Gemini',
-      status: 'Pending'
-    },
-    {
-      id: 2,
-      match: 'Real Madrid vs Barcelona',
-      league: 'La Liga',
-      prediction: 'Away Win',
-      odds: 2.10,
-      confidence: 72,
-      ai: 'Grok',
-      status: 'Pending'
-    },
-    {
-      id: 3,
-      match: 'Bayern Munich vs Dortmund',
-      league: 'Bundesliga',
-      prediction: 'Draw',
-      odds: 3.20,
-      confidence: 65,
-      ai: 'Mistral',
-      status: 'Pending'
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/predictions?targets=${activeTargets.join(',')}`);
+      const json = await res.json();
+      setData(json);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const stats = [
+    { label: 'Avg Accuracy', value: '78.4%', icon: TrendingUp, color: 'text-blue-400' },
+    { label: 'Target Odds', value: activeTargets.join(', '), icon: Target, color: 'text-purple-400' },
+    { label: 'System Uptime', value: '99.9%', icon: Activity, color: 'text-green-400' },
+    { label: 'AI Health', value: data?.health?.status || 'Online', icon: Shield, color: 'text-orange-400' },
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-screen">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-6">
         <div>
-          <h1 className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-white to-gray-500 bg-clip-text text-transparent">
-            AI Prediction Dashboard
+          <h1 className="text-5xl font-extrabold tracking-tighter bg-gradient-to-r from-white via-blue-400 to-gray-500 bg-clip-text text-transparent">
+            AI ODD GENERATOR
           </h1>
-          <p className="text-gray-400 mt-2">Professional football analytics powered by multi-LLM consensus.</p>
+          <p className="text-gray-400 mt-2 font-medium">Multi-agent risk analysis & accumulator synthesis.</p>
         </div>
         
-        <div className="flex bg-white/5 p-1 rounded-xl border border-white/10">
-          {['Gemini', 'Grok', 'Mistral'].map((ai) => (
-            <button
-              key={ai}
-              onClick={() => setActiveAI(ai)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                activeAI.includes(ai) 
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' 
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              {ai}
-            </button>
-          ))}
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={fetchData}
+            disabled={loading}
+            className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-2xl font-bold transition-all shadow-xl shadow-blue-600/20"
+          >
+            {loading ? <RefreshCcw className="animate-spin" size={18} /> : <RefreshCcw size={18} />}
+            Generate New Slips
+          </button>
+          <a href="/admin" className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 transition-all">
+            <Activity size={24} className="text-gray-400" />
+          </a>
         </div>
       </div>
 
@@ -83,136 +77,111 @@ export default function Dashboard() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
             key={stat.label}
-            className="glass-card flex items-center gap-4"
+            className="p-6 rounded-3xl bg-white/5 border border-white/10 flex items-center gap-4 backdrop-blur-xl"
           >
-            <div className={`p-3 rounded-xl bg-white/5 ${stat.color}`}>
+            <div className={`p-4 rounded-2xl bg-white/5 ${stat.color}`}>
               <stat.icon size={24} />
             </div>
             <div>
-              <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold">{stat.label}</p>
-              <p className="text-2xl font-bold">{stat.value}</p>
+              <p className="text-xs text-gray-500 uppercase tracking-widest font-bold">{stat.label}</p>
+              <p className="text-2xl font-black">{stat.value}</p>
             </div>
           </motion.div>
         ))}
       </div>
 
-      {/* Main Content Grid */}
+      {/* Slips Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left: Today's Picks */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-xl font-bold flex items-center gap-2">
-              <CheckCircle className="text-green-400" size={20} />
-              Today's High-Value Picks (2.0 Odds)
-            </h2>
-            <span className="text-xs text-gray-500 font-medium">UPDATED 5 MIN AGO</span>
-          </div>
-          
-          <div className="space-y-4">
-            {predictions.map((p, i) => (
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.4 + (i * 0.1) }}
-                key={p.id}
-                className="glass-card flex flex-col md:flex-row md:items-center justify-between gap-6 hover:border-blue-500/50"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center font-bold text-lg">
-                    {p.match[0]}
-                  </div>
-                  <div>
-                    <p className="text-sm text-blue-400 font-semibold uppercase tracking-tight">{p.league}</p>
-                    <h3 className="text-lg font-bold">{p.match}</h3>
-                  </div>
+        <AnimatePresence mode="wait">
+          {loading ? (
+             <div className="lg:col-span-3 h-64 flex items-center justify-center">
+                <div className="flex flex-col items-center gap-4">
+                   <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                   <p className="text-gray-400 font-mono animate-pulse text-sm">AI AGENTS ANALYZING MARKETS...</p>
                 </div>
-                
-                <div className="flex items-center gap-8">
-                  <div className="text-center">
-                    <p className="text-xs text-gray-400 uppercase">Prediction</p>
-                    <p className="font-bold text-green-400">{p.prediction}</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-xs text-gray-400 uppercase">Odds</p>
-                    <p className="font-bold">{p.odds.toFixed(2)}</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-xs text-gray-400 uppercase">Confidence</p>
-                    <div className="w-16 bg-white/10 h-1.5 rounded-full mt-1">
-                      <div 
-                        className="bg-blue-500 h-full rounded-full" 
-                        style={{ width: `${p.confidence}%` }}
-                      ></div>
+             </div>
+          ) : (
+            data?.slips?.map((slip: any, i: number) => (
+              <motion.div
+                key={slip.id}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: i * 0.1 }}
+                className="relative group"
+              >
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-purple-600 rounded-[2rem] opacity-20 group-hover:opacity-40 blur transition-all" />
+                <div className="relative p-8 rounded-[2rem] bg-[#0D0D0E] border border-white/10 h-full flex flex-col">
+                  <div className="flex justify-between items-start mb-8">
+                    <div>
+                      <h3 className="text-3xl font-black text-white">{slip.totalOdds}x <span className="text-sm font-normal text-gray-500">ODDS</span></h3>
+                      <p className="text-xs font-bold text-blue-400 uppercase tracking-widest mt-1">Target: {slip.targetOdds}x</p>
                     </div>
-                    <p className="text-xs mt-1 font-bold">{p.confidence}%</p>
+                    <div className="p-3 rounded-2xl bg-white/5 border border-white/10">
+                      <TrendingUp size={20} className="text-green-400" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-6 flex-1">
+                    {slip.matches.map((match: any, j: number) => (
+                      <div key={j} className="flex flex-col gap-1">
+                        <div className="flex justify-between items-center">
+                          <p className="text-sm font-bold truncate pr-4">{match.match}</p>
+                          <span className="text-xs font-mono text-blue-400">{match.odds.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <p className="text-[10px] text-gray-500 font-medium uppercase">{match.prediction}</p>
+                          <p className="text-[10px] text-green-400 font-bold">{Math.round(match.probability * 100)}% CONF.</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-8 pt-8 border-t border-white/5">
+                    <div className="flex justify-between items-center mb-4">
+                      <span className="text-xs text-gray-500 font-bold uppercase tracking-widest">Slip Confidence</span>
+                      <span className="text-sm font-black text-white">{slip.confidence}%</span>
+                    </div>
+                    <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${slip.confidence}%` }}
+                        className="bg-blue-600 h-full rounded-full shadow-[0_0_10px_rgba(37,99,235,0.5)]" 
+                      />
+                    </div>
+                    <button className="w-full mt-6 py-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-bold transition-all flex items-center justify-center gap-2 group">
+                      View Analysis
+                      <ExternalLink size={14} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                    </button>
                   </div>
                 </div>
               </motion.div>
-            ))}
-          </div>
-        </div>
-
-        {/* Right: AI Health & Feed */}
-        <div className="space-y-6">
-          <h2 className="text-xl font-bold flex items-center gap-2">
-            <Activity className="text-blue-400" size={20} />
-            AI Health Status
-          </h2>
-          
-          <div className="glass-card space-y-6">
-            <div>
-              <div className="flex justify-between mb-2">
-                <span className="text-sm font-medium">Model Data Drift</span>
-                <span className="text-sm text-green-400">Low (0.02)</span>
-              </div>
-              <div className="w-full bg-white/5 h-2 rounded-full">
-                <div className="bg-green-500 w-[92%] h-full rounded-full"></div>
-              </div>
-            </div>
-            
-            <div>
-              <div className="flex justify-between mb-2">
-                <span className="text-sm font-medium">API Latency</span>
-                <span className="text-sm text-blue-400">142ms</span>
-              </div>
-              <div className="w-full bg-white/5 h-2 rounded-full">
-                <div className="bg-blue-500 w-[75%] h-full rounded-full"></div>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-white/10">
-              <h4 className="text-sm font-bold mb-3 flex items-center gap-2">
-                <AlertTriangle size={16} className="text-yellow-500" />
-                Live Agent Logs
-              </h4>
-              <div className="space-y-3 font-mono text-[10px]">
-                <div className="flex gap-2">
-                  <span className="text-gray-500">[21:34:02]</span>
-                  <span className="text-green-400">SCRAPER:</span>
-                  <span>Fetched odds from 4 sources.</span>
-                </div>
-                <div className="flex gap-2">
-                  <span className="text-gray-500">[21:34:05]</span>
-                  <span className="text-purple-400">ANALYST:</span>
-                  <span>Gemini processing Arsenal vs City.</span>
-                </div>
-                <div className="flex gap-2">
-                  <span className="text-gray-500">[21:34:12]</span>
-                  <span className="text-blue-400">HEALTH:</span>
-                  <span>All systems operational.</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-blue-600/10 border border-blue-500/20 rounded-2xl p-4">
-            <h4 className="text-sm font-bold text-blue-400 mb-1">PRO TIP</h4>
-            <p className="text-xs text-gray-400">
-              The "Validator" agent has flagged high volatility in the Bundesliga today. Betting stakes should be reduced.
-            </p>
-          </div>
-        </div>
+            ))
+          )}
+        </AnimatePresence>
       </div>
+
+      {/* Footer Info */}
+      {!loading && (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="mt-12 p-8 rounded-3xl bg-blue-600/5 border border-blue-500/10 flex flex-col md:flex-row justify-between items-center gap-6"
+        >
+          <div className="flex items-center gap-4">
+            <div className="p-3 rounded-2xl bg-blue-600/10 text-blue-400">
+              <AlertTriangle size={20} />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-white">Risk Advisory</p>
+              <p className="text-xs text-gray-400">AI confidence scores are based on historical xG and market drift. Play responsibly.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-[10px] font-mono text-gray-500">
+             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+             LAST SYNC: {new Date(data?.timestamp).toLocaleTimeString()}
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 }
