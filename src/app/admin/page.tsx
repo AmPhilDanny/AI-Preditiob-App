@@ -1,14 +1,16 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Cpu, Terminal, Globe, Lock, Database, Shield,
   CheckCircle, RefreshCcw, Plus, Trash2, Eye, EyeOff,
-  Zap, Activity, History, Server, ChevronRight, AlertTriangle
+  Zap, Activity, History, Server, LogOut, AlertTriangle,
+  Loader2
 } from 'lucide-react';
 
-const tabs = [
+const TABS = [
   { id: 'agents',   label: 'Neural Agents',   icon: Cpu },
   { id: 'prompts',  label: 'Prompt Engine',   icon: Terminal },
   { id: 'scraping', label: 'Crawl Routes',    icon: Globe },
@@ -17,34 +19,38 @@ const tabs = [
 ];
 
 const fadeIn = {
-  hidden: { opacity: 0, y: 12 },
-  show:   { opacity: 1, y: 0, transition: { duration: 0.3 } },
+  hidden: { opacity: 0, y: 10 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.25 } },
 };
 
 export default function AdminPage() {
-  const [active, setActive]   = useState('agents');
-  const [config, setConfig]   = useState<any>(null);
-  const [history, setHistory] = useState<any[]>([]);
-  const [health, setHealth]   = useState<any>(null);
-  const [saving, setSaving]   = useState(false);
-  const [saved, setSaved]     = useState(false);
-  const [showKey, setShowKey] = useState<Record<string, boolean>>({});
+  const router = useRouter();
 
+  const [active,   setActive]   = useState('agents');
+  const [config,   setConfig]   = useState<any>(null);
+  const [history,  setHistory]  = useState<any[]>([]);
+  const [health,   setHealth]   = useState<any>(null);
+  const [loading,  setLoading]  = useState(true);
+  const [saving,   setSaving]   = useState(false);
+  const [saved,    setSaved]    = useState(false);
+  const [showKey,  setShowKey]  = useState<Record<string, boolean>>({});
+
+  /* ── Single combined fetch ───────────────────────────────── */
   const load = useCallback(async () => {
+    setLoading(true);
     try {
-      const [cr, hr, hr2] = await Promise.all([
-        fetch('/api/admin/config'),
-        fetch('/api/admin/history'),
-        fetch('/api/admin/health'),
-      ]);
-      const [cfg, hist, hlth] = await Promise.all([cr.json(), hr.json(), hr2.json()]);
-      setConfig(cfg);
-      setHistory(Array.isArray(hist) ? hist : []);
-      setHealth(hlth);
+      const res  = await fetch('/api/admin/overview');
+      if (res.status === 401) { router.push('/admin/login'); return; }
+      const data = await res.json();
+      setConfig(data.config);
+      setHistory(Array.isArray(data.history) ? data.history : []);
+      setHealth(data.health);
     } catch (e) {
       console.error(e);
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     load();
@@ -54,6 +60,7 @@ export default function AdminPage() {
     return () => clearInterval(t);
   }, [load]);
 
+  /* ── Save config ─────────────────────────────────────────── */
   const handleSave = async () => {
     setSaving(true);
     await fetch('/api/admin/config', {
@@ -66,14 +73,17 @@ export default function AdminPage() {
     setTimeout(() => setSaved(false), 2500);
   };
 
-  /* ── Loading ── */
-  if (!config) {
+  /* ── Logout ──────────────────────────────────────────────── */
+  const handleLogout = async () => {
+    await fetch('/api/admin/auth', { method: 'DELETE' });
+    router.push('/admin/login');
+  };
+
+  /* ── Loading state ───────────────────────────────────────── */
+  if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-64px)] gap-4">
-        <div className="relative w-12 h-12">
-          <div className="absolute inset-0 rounded-full border-2 border-border" />
-          <div className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-        </div>
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
         <p className="text-sm text-muted-foreground">Loading admin panel…</p>
       </div>
     );
@@ -82,14 +92,14 @@ export default function AdminPage() {
   const agents = [
     { name: 'Scraper Agent',   icon: Globe,        status: health?.status === 'online' ? 'online' : 'offline', load: '12%', color: 'text-cyan-500',    bg: 'bg-cyan-500/10' },
     { name: 'Analyst Agent',   icon: Terminal,      status: health?.status === 'online' ? 'online' : 'offline', load: '45%', color: 'text-violet-500',  bg: 'bg-violet-500/10' },
-    { name: 'Validator Agent', icon: CheckCircle,   status: 'idle',                                              load: '0%',  color: 'text-muted-foreground', bg: 'bg-secondary' },
-    { name: 'Health Agent',    icon: Shield,        status: 'online',                                            load: '5%',  color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+    { name: 'Validator Agent', icon: CheckCircle,   status: 'idle',    load: '0%',  color: 'text-muted-foreground', bg: 'bg-secondary' },
+    { name: 'Health Agent',    icon: Shield,        status: 'online',  load: '5%',  color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
   ];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 pb-24">
 
-      {/* ── Page header ───────────────────────────────────────── */}
+      {/* ── Header ───────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
         <div>
           <div className="flex items-center gap-2 mb-2">
@@ -99,30 +109,39 @@ export default function AdminPage() {
             </span>
           </div>
           <h1 className="font-display text-3xl font-black text-foreground">Control Center</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Manage AI agents, prompts, scrapers, and system credentials.
+          <p className="text-sm text-muted-foreground mt-1">
+            Manage AI agents, prompts, scrapers and credentials.
           </p>
         </div>
 
-        {active !== 'history' && (
-          <button onClick={handleSave} disabled={saving} className="btn-primary shrink-0">
-            {saving
-              ? <RefreshCcw size={15} className="animate-spin" />
-              : saved
-              ? <CheckCircle size={15} />
-              : <Zap size={15} />}
-            {saving ? 'Saving…' : saved ? 'Saved!' : 'Save Changes'}
+        <div className="flex items-center gap-3 shrink-0">
+          {active !== 'history' && (
+            <button onClick={handleSave} disabled={saving} className="btn-primary">
+              {saving
+                ? <Loader2 size={15} className="animate-spin" />
+                : saved
+                ? <CheckCircle size={15} />
+                : <Zap size={15} />}
+              {saving ? 'Saving…' : saved ? 'Saved!' : 'Save Changes'}
+            </button>
+          )}
+          <button
+            onClick={handleLogout}
+            className="btn-ghost flex items-center gap-2 text-muted-foreground hover:text-destructive hover:border-destructive/30"
+          >
+            <LogOut size={15} />
+            Logout
           </button>
-        )}
+        </div>
       </div>
 
-      {/* ── Layout ─────────────────────────────────────────────── */}
+      {/* ── Layout ───────────────────────────────────────────── */}
       <div className="flex flex-col lg:flex-row gap-6">
 
         {/* Sidebar */}
-        <aside className="lg:w-56 shrink-0">
+        <aside className="lg:w-56 shrink-0 space-y-3">
           <nav className="card-base p-2 flex flex-row lg:flex-col gap-1 overflow-x-auto lg:overflow-x-visible">
-            {tabs.map(({ id, label, icon: Icon }) => (
+            {TABS.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
                 onClick={() => setActive(id)}
@@ -134,29 +153,34 @@ export default function AdminPage() {
             ))}
           </nav>
 
-          {/* System load card (desktop only) */}
-          <div className="hidden lg:block card-base p-4 mt-4 space-y-3">
+          {/* Status card — desktop */}
+          <div className="hidden lg:block card-base p-4 space-y-3">
             <p className="section-label">System Status</p>
             <div className="flex items-center gap-2 text-sm">
               <span className={health?.status === 'online' ? 'dot-online' : 'dot-offline'} />
-              <span className="font-medium text-foreground capitalize">{health?.status || '…'}</span>
+              <span className="font-medium text-foreground capitalize">
+                {health?.status || 'Unknown'}
+              </span>
             </div>
-            <div className="flex items-center gap-2 text-sm">
-              <Server size={14} className="text-muted-foreground" />
-              <span className="text-muted-foreground">{health?.dbStatus === 'online' ? 'DB Connected' : 'DB Offline'}</span>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Server size={14} className="shrink-0" />
+              {health?.dbStatus === 'online' ? 'DB Connected' : 'DB Offline'}
+            </div>
+            <div className="pt-2 border-t border-border">
+              <button onClick={load} className="btn-ghost w-full text-xs gap-2 py-1.5">
+                <RefreshCcw size={13} /> Refresh
+              </button>
             </div>
           </div>
         </aside>
 
-        {/* Main content */}
+        {/* Main */}
         <main className="flex-1 min-w-0">
           <AnimatePresence mode="wait">
 
             {/* ── Agents ───────────────────────────────────────── */}
             {active === 'agents' && (
               <motion.div key="agents" variants={fadeIn} initial="hidden" animate="show" exit="hidden" className="space-y-6">
-
-                {/* Agent grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {agents.map(({ name, icon: Icon, status, load, color, bg }) => (
                     <div key={name} className="card-base p-5 flex items-center gap-4">
@@ -164,9 +188,12 @@ export default function AdminPage() {
                         <Icon size={22} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-foreground text-sm truncate">{name}</p>
+                        <p className="font-semibold text-sm text-foreground truncate">{name}</p>
                         <div className="flex items-center gap-1.5 mt-1">
-                          <span className={status === 'online' ? 'dot-online' : status === 'idle' ? 'dot-idle' : 'dot-offline'} />
+                          <span className={
+                            status === 'online' ? 'dot-online' :
+                            status === 'idle'   ? 'dot-idle'   : 'dot-offline'
+                          } />
                           <span className="text-xs text-muted-foreground capitalize">{status}</span>
                         </div>
                       </div>
@@ -178,14 +205,13 @@ export default function AdminPage() {
                   ))}
                 </div>
 
-                {/* Gateway status */}
+                {/* Gateways */}
                 <div className="card-base overflow-hidden">
                   <div className="px-6 py-4 border-b border-border flex items-center gap-2">
                     <Activity size={16} className="text-primary" />
-                    <h3 className="font-semibold text-foreground text-sm">Neural Gateways</h3>
+                    <h3 className="font-semibold text-sm text-foreground">Neural Gateways</h3>
                   </div>
                   <div className="divide-y divide-border">
-                    {/* DB row */}
                     <div className="px-6 py-4 flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <Database size={18} className="text-muted-foreground" />
@@ -198,24 +224,22 @@ export default function AdminPage() {
                         {health?.dbStatus || 'checking…'}
                       </span>
                     </div>
-                    {/* AI providers */}
                     {config?.aiProviders && Object.entries(config.aiProviders).map(([id, p]: [string, any]) => (
-                      <div key={id} className="px-6 py-4 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <Zap size={18} className="text-muted-foreground" />
-                          <div>
+                      <div key={id} className="px-6 py-4 flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <Zap size={18} className="text-muted-foreground shrink-0" />
+                          <div className="min-w-0">
                             <p className="text-sm font-medium text-foreground capitalize">{id}</p>
-                            <p className="text-xs text-muted-foreground">AI neural net</p>
+                            <p className="text-xs text-muted-foreground truncate">AI provider</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 shrink-0">
                           <span className={p.enabled ? 'badge badge-purple' : 'badge badge-gray'}>
                             {p.enabled ? 'Active' : 'Inactive'}
                           </span>
                           <button
                             onClick={() => {
-                              const u = { ...config.aiProviders };
-                              u[id] = { ...u[id], enabled: !u[id].enabled };
+                              const u = { ...config.aiProviders, [id]: { ...p, enabled: !p.enabled } };
                               setConfig({ ...config, aiProviders: u });
                             }}
                             className="btn-ghost text-xs px-3 py-1"
@@ -232,14 +256,15 @@ export default function AdminPage() {
 
             {/* ── Prompts ──────────────────────────────────────── */}
             {active === 'prompts' && (
-              <motion.div key="prompts" variants={fadeIn} initial="hidden" animate="show" exit="hidden" className="space-y-6">
+              <motion.div key="prompts" variants={fadeIn} initial="hidden" animate="show" exit="hidden">
                 <div className="card-base overflow-hidden">
                   <div className="px-6 py-4 border-b border-border">
-                    <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
-                      <Terminal size={16} className="text-primary" />
-                      Agent Behavior Patterns
+                    <h3 className="font-semibold text-sm text-foreground flex items-center gap-2">
+                      <Terminal size={16} className="text-primary" /> Agent Behavior Patterns
                     </h3>
-                    <p className="text-xs text-muted-foreground mt-1">Configure how each agent reasons and responds.</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      These prompts control how each AI agent reasons and responds.
+                    </p>
                   </div>
                   <div className="p-6 space-y-6">
                     <div>
@@ -248,10 +273,13 @@ export default function AdminPage() {
                         <span className="badge badge-purple">Gemini Optimised</span>
                       </div>
                       <textarea
-                        rows={7}
+                        rows={8}
                         className="form-textarea"
                         value={config?.agentPrompts?.analyst || ''}
-                        onChange={e => setConfig({ ...config, agentPrompts: { ...config.agentPrompts, analyst: e.target.value } })}
+                        onChange={e => setConfig({
+                          ...config,
+                          agentPrompts: { ...config.agentPrompts, analyst: e.target.value }
+                        })}
                         placeholder="Define how the analyst agent reasons about match outcomes…"
                       />
                     </div>
@@ -261,7 +289,10 @@ export default function AdminPage() {
                         rows={4}
                         className="form-textarea"
                         value={config?.agentPrompts?.scraper || ''}
-                        onChange={e => setConfig({ ...config, agentPrompts: { ...config.agentPrompts, scraper: e.target.value } })}
+                        onChange={e => setConfig({
+                          ...config,
+                          agentPrompts: { ...config.agentPrompts, scraper: e.target.value }
+                        })}
                         placeholder="Define how the scraper agent filters and normalises data…"
                       />
                     </div>
@@ -272,25 +303,26 @@ export default function AdminPage() {
 
             {/* ── Scraping ─────────────────────────────────────── */}
             {active === 'scraping' && (
-              <motion.div key="scraping" variants={fadeIn} initial="hidden" animate="show" exit="hidden" className="space-y-6">
+              <motion.div key="scraping" variants={fadeIn} initial="hidden" animate="show" exit="hidden">
                 <div className="card-base overflow-hidden">
                   <div className="px-6 py-4 border-b border-border flex items-center justify-between">
-                    <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
-                      <Globe size={16} className="text-cyan-500" />
-                      Crawl Targets
+                    <h3 className="font-semibold text-sm text-foreground flex items-center gap-2">
+                      <Globe size={16} className="text-cyan-500" /> Crawl Targets
                     </h3>
                     <button
                       className="btn-primary text-xs px-3 py-1.5"
                       onClick={() => {
-                        const url = prompt('Enter scraping URL:');
-                        if (url) setConfig({ ...config, scrapingUrls: [...(config.scrapingUrls || []), url] });
+                        const url = prompt('Enter target URL:');
+                        if (url?.trim()) {
+                          setConfig({ ...config, scrapingUrls: [...(config.scrapingUrls || []), url.trim()] });
+                        }
                       }}
                     >
-                      <Plus size={14} /> Add
+                      <Plus size={14} /> Add URL
                     </button>
                   </div>
 
-                  {config?.scrapingUrls?.length > 0 ? (
+                  {(config?.scrapingUrls?.length ?? 0) > 0 ? (
                     <div className="divide-y divide-border">
                       {config.scrapingUrls.map((url: string, i: number) => (
                         <div key={i} className="px-6 py-4 flex items-center gap-4">
@@ -298,7 +330,10 @@ export default function AdminPage() {
                           <p className="text-sm text-foreground font-mono truncate flex-1">{url}</p>
                           <button
                             className="btn-icon shrink-0 hover:text-destructive hover:border-destructive/30"
-                            onClick={() => setConfig({ ...config, scrapingUrls: config.scrapingUrls.filter((_: any, j: number) => j !== i) })}
+                            onClick={() => setConfig({
+                              ...config,
+                              scrapingUrls: config.scrapingUrls.filter((_: any, j: number) => j !== i)
+                            })}
                           >
                             <Trash2 size={14} />
                           </button>
@@ -306,8 +341,8 @@ export default function AdminPage() {
                       ))}
                     </div>
                   ) : (
-                    <div className="px-6 py-10 text-center text-muted-foreground text-sm">
-                      No crawl targets configured. Click "Add" to get started.
+                    <div className="px-6 py-12 text-center text-muted-foreground text-sm">
+                      No crawl targets configured. Click "Add URL" to get started.
                     </div>
                   )}
                 </div>
@@ -316,12 +351,15 @@ export default function AdminPage() {
 
             {/* ── History ──────────────────────────────────────── */}
             {active === 'history' && (
-              <motion.div key="history" variants={fadeIn} initial="hidden" animate="show" exit="hidden" className="space-y-6">
+              <motion.div key="history" variants={fadeIn} initial="hidden" animate="show" exit="hidden">
                 <div className="card-base overflow-hidden">
                   <div className="px-6 py-4 border-b border-border flex items-center justify-between">
-                    <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
+                    <h3 className="font-semibold text-sm text-foreground flex items-center gap-2">
                       <History size={16} className="text-emerald-500" />
                       Prediction Logs
+                      {history.length > 0 && (
+                        <span className="badge badge-green">{history.length}</span>
+                      )}
                     </h3>
                     <button className="btn-icon" onClick={load}>
                       <RefreshCcw size={14} />
@@ -335,14 +373,14 @@ export default function AdminPage() {
                           <tr>
                             <th>Timestamp</th>
                             <th>Target</th>
-                            <th>Actual Odds</th>
+                            <th>Resultant Odds</th>
                             <th>Confidence</th>
                           </tr>
                         </thead>
                         <tbody>
                           {history.map(slip => (
                             <tr key={slip.id}>
-                              <td className="text-xs font-mono text-muted-foreground">
+                              <td className="text-xs font-mono text-muted-foreground whitespace-nowrap">
                                 {new Date(slip.createdAt).toLocaleString()}
                               </td>
                               <td>
@@ -353,7 +391,7 @@ export default function AdminPage() {
                               </td>
                               <td>
                                 <div className="flex items-center gap-3">
-                                  <div className="progress-bar w-24">
+                                  <div className="progress-bar w-20">
                                     <div className="progress-fill" style={{ width: `${slip.confidence}%` }} />
                                   </div>
                                   <span className="text-sm font-semibold text-foreground">{slip.confidence}%</span>
@@ -365,8 +403,8 @@ export default function AdminPage() {
                       </table>
                     </div>
                   ) : (
-                    <div className="px-6 py-10 text-center text-muted-foreground text-sm">
-                      No prediction history yet. Generate slips from the dashboard first.
+                    <div className="px-6 py-12 text-center text-muted-foreground text-sm">
+                      No prediction history yet. Generate slips from the dashboard to see logs here.
                     </div>
                   )}
                 </div>
@@ -375,27 +413,28 @@ export default function AdminPage() {
 
             {/* ── Security ─────────────────────────────────────── */}
             {active === 'security' && (
-              <motion.div key="security" variants={fadeIn} initial="hidden" animate="show" exit="hidden" className="space-y-6">
-
+              <motion.div key="security" variants={fadeIn} initial="hidden" animate="show" exit="hidden" className="space-y-5">
                 <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
                   <AlertTriangle size={16} className="text-amber-500 shrink-0 mt-0.5" />
-                  <p className="text-sm text-amber-600 dark:text-amber-400">
-                    Credentials are encrypted at rest and never logged to client-side output.
-                  </p>
+                  <div>
+                    <p className="text-sm font-semibold text-amber-600 dark:text-amber-400">Security Notice</p>
+                    <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-0.5">
+                      Credentials are stored in encrypted environment variables and are never exposed in client-side code or logs.
+                    </p>
+                  </div>
                 </div>
 
                 <div className="card-base overflow-hidden">
                   <div className="px-6 py-4 border-b border-border">
-                    <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
-                      <Lock size={16} className="text-primary" />
-                      Credential Vault
+                    <h3 className="font-semibold text-sm text-foreground flex items-center gap-2">
+                      <Lock size={16} className="text-primary" /> Credential Vault
                     </h3>
                   </div>
                   <div className="p-6 space-y-5">
                     {[
-                      { id: 'football', label: 'Football-API Token',       value: config?.footballApiKey },
-                      { id: 'gemini',   label: 'Gemini Neural Key',         value: config?.aiProviders?.gemini?.apiKey },
-                      { id: 'db',       label: 'Neon DB Connection String', value: 'postgres://***@***.neon.tech/neondb' },
+                      { id: 'football', label: 'Football-API Token',         value: config?.footballApiKey },
+                      { id: 'gemini',   label: 'Gemini Neural Key',           value: config?.aiProviders?.gemini?.apiKey },
+                      { id: 'db',       label: 'Neon DB Connection String',   value: 'postgres://***@***.neon.tech/neondb' },
                     ].map(({ id, label, value }) => (
                       <div key={id}>
                         <label className="section-label block mb-2">{label}</label>
