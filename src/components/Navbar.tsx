@@ -12,7 +12,9 @@ import {
   LayoutDashboard, 
   Settings,
   Menu,
-  X
+  X,
+  Zap,
+  Command
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -21,102 +23,113 @@ export default function Navbar() {
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
 
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    setMounted(true);
+    const handleScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const navLinks = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-    { name: 'AI Health', href: '#', icon: Activity },
-    { name: 'Admin Control', href: '/admin', icon: Shield },
+    { name: 'Admin Control', href: '/admin', icon: Command },
   ];
 
   if (!mounted) return null;
 
   return (
-    <nav className="fixed top-0 w-full z-50 bg-background/60 backdrop-blur-xl border-b border-border/50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20">
-          <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-3 group">
-              <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20 group-hover:rotate-12 transition-transform duration-300">
-                <Shield className="text-primary-foreground" size={24} />
-              </div>
-              <span className="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/60">
-                Antigravity Predictions
-              </span>
-            </Link>
-          </div>
-
-          {/* Desktop Nav */}
-          <div className="hidden md:flex items-center gap-8">
-            <div className="flex items-center gap-2">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.name}
-                  href={link.href}
-                  className={`nav-link flex items-center gap-2 ${
-                    pathname === link.href ? 'active text-primary' : 'text-muted-foreground'
-                  }`}
-                >
-                  <link.icon size={16} />
-                  {link.name}
-                </Link>
-              ))}
+    <div className="fixed top-0 w-full z-50 px-4 py-6 transition-all duration-500">
+      <nav className={`max-w-5xl mx-auto px-6 h-16 flex items-center justify-between rounded-full transition-all duration-500 ${
+        scrolled 
+          ? 'bg-background/40 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.2)]' 
+          : 'bg-transparent border border-transparent'
+      }`}>
+        <div className="flex items-center gap-4">
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="w-10 h-10 premium-gradient rounded-xl flex items-center justify-center shadow-lg shadow-primary/20 group-hover:rotate-[15deg] transition-all duration-500">
+              <Zap className="text-white fill-white" size={20} />
             </div>
-
-            <div className="h-6 w-px bg-border/50" />
-
-            <button
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="p-2.5 rounded-xl bg-secondary/50 hover:bg-secondary text-foreground transition-all duration-300 border border-border/50"
-            >
-              {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
-            </button>
-          </div>
-
-          {/* Mobile Menu Button */}
-          <div className="md:hidden flex items-center gap-4">
-            <button
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="p-2 rounded-xl bg-secondary/50 text-foreground"
-            >
-              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
-            <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="p-2 rounded-xl bg-secondary/50 text-foreground"
-            >
-              {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
-          </div>
+            <span className="text-lg font-black tracking-tighter font-outfit hidden sm:block">
+              NEURAL<span className="text-primary">BET</span>
+            </span>
+          </Link>
         </div>
-      </div>
+
+        {/* Desktop Nav */}
+        <div className="hidden md:flex items-center gap-2">
+          {navLinks.map((link) => (
+            <Link
+              key={link.name}
+              href={link.href}
+              className={`nav-link flex items-center gap-2 rounded-full ${
+                pathname === link.href ? 'active' : ''
+              }`}
+            >
+              <link.icon size={16} />
+              {link.name}
+            </Link>
+          ))}
+          
+          <div className="w-px h-6 bg-border/50 mx-2" />
+          
+          <button
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/5 transition-all duration-300 group"
+          >
+            {theme === 'dark' ? (
+              <Sun size={20} className="group-hover:rotate-90 transition-transform duration-500" />
+            ) : (
+              <Moon size={20} className="group-hover:-rotate-12 transition-transform duration-500" />
+            )}
+          </button>
+        </div>
+
+        {/* Mobile Toggle */}
+        <div className="md:hidden flex items-center gap-2">
+          <button
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-white/5"
+          >
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-primary text-white"
+          >
+            {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        </div>
+      </nav>
 
       {/* Mobile Menu */}
       <AnimatePresence>
         {isMobileMenuOpen && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="md:hidden border-t border-border/50 bg-background/95 backdrop-blur-xl"
+            initial={{ opacity: 0, scale: 0.95, y: -20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: -20 }}
+            className="absolute top-24 left-4 right-4 p-4 rounded-[2.5rem] bg-background/80 backdrop-blur-3xl border border-white/10 md:hidden shadow-2xl"
           >
-            <div className="px-4 py-6 space-y-4">
+            <div className="space-y-2">
               {navLinks.map((link) => (
                 <Link
                   key={link.name}
                   href={link.href}
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center gap-4 p-4 rounded-2xl bg-secondary/30 hover:bg-secondary/50 transition-all"
+                  className={`flex items-center gap-4 p-5 rounded-3xl transition-all ${
+                    pathname === link.href ? 'bg-primary text-white shadow-xl shadow-primary/20' : 'hover:bg-white/5'
+                  }`}
                 >
-                  <link.icon size={20} />
-                  <span className="font-medium">{link.name}</span>
+                  <link.icon size={22} />
+                  <span className="font-black font-outfit uppercase tracking-widest text-xs">{link.name}</span>
                 </Link>
               ))}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-    </nav>
+    </div>
   );
 }

@@ -19,7 +19,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${outfit.variable} font-sans antialiased`}>
+      <body className={`${inter.variable} ${outfit.variable} font-sans antialiased relative overflow-x-hidden`}>
+        <div className="mesh-bg">
+          <div className="mesh-circle-1" />
+          <div className="mesh-circle-2" />
+        </div>
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
@@ -27,7 +31,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <Navbar />
-          <main className="pt-20 min-h-screen">
+          <main className="pt-24 min-h-screen relative z-10">
             {children}
           </main>
         </ThemeProvider>
