@@ -19,19 +19,15 @@ export class AnalystAgent {
   async generateSlips(matches: MatchData[], targetOdds: number[] = [2, 5, 10]): Promise<BetSlip[]> {
     console.log(`Generating slips for target odds: ${targetOdds.join(', ')}`);
     
-    // 1. Get predictions for all available matches first
     const allPredictions: PredictionResult[] = [];
     for (const match of matches) {
       const prediction = await this.aiFactory.predict(match);
       allPredictions.push(prediction);
     }
 
-    // 2. Sort by confidence (Risk-minimization)
     const sortedPredictions = [...allPredictions].sort((a, b) => b.probability - a.probability);
-
     const slips: BetSlip[] = [];
 
-    // 3. Create a slip for each target odd
     for (const target of targetOdds) {
       let currentSlip: PredictionResult[] = [];
       let currentOdds = 1.0;
@@ -39,9 +35,6 @@ export class AnalystAgent {
 
       for (const pred of sortedPredictions) {
         if (currentOdds >= target) break;
-
-        // Simple heuristic: don't add if it blows past the target too much, 
-        // unless it's the first match.
         currentSlip.push(pred);
         currentOdds *= pred.odds;
         combinedConfidence *= pred.probability;

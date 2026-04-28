@@ -1,12 +1,22 @@
+import prisma from "../prisma";
+
 export class HealthAgent {
   constructor() {}
 
   async checkSystemHealth(): Promise<any> {
-    console.log("Checking system health...");
+    console.log("Performing deep system health check...");
     
-    // Logic to monitor API rate limits, database connection, and uptime
+    let dbStatus = 'online';
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+    } catch (err) {
+      console.error("Database health check failed:", err);
+      dbStatus = 'offline';
+    }
+
     return {
-      status: 'healthy',
+      status: dbStatus === 'online' ? 'healthy' : 'degraded',
+      database: dbStatus,
       apiUsage: {
         gemini: '12%',
         grok: '5%',
