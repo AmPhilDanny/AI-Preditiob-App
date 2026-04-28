@@ -26,12 +26,41 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('agents');
   const [isSaving, setIsSaving] = useState(false);
   const [config, setConfig] = useState<any>(null);
+  const [history, setHistory] = useState<any[]>([]);
+  const [health, setHealth] = useState<any>(null);
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
 
+  const fetchData = async () => {
+    try {
+      const [configRes, historyRes, healthRes] = await Promise.all([
+        fetch('/api/admin/config'),
+        fetch('/api/admin/history'),
+        fetch('/api/admin/health')
+      ]);
+      
+      const [configData, historyData, healthData] = await Promise.all([
+        configRes.json(),
+        historyRes.json(),
+        healthRes.json()
+      ]);
+
+      setConfig(configData);
+      setHistory(historyData);
+      setHealth(healthData);
+    } catch (err) {
+      console.error("Error fetching admin data:", err);
+    }
+  };
+
   useEffect(() => {
-    fetch('/api/admin/config')
-      .then(res => res.json())
-      .then(data => setConfig(data));
+    fetchData();
+    // Poll health every 30 seconds
+    const interval = setInterval(() => {
+      fetch('/api/admin/health')
+        .then(res => res.json())
+        .then(data => setHealth(data));
+    }, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleSave = async () => {
@@ -54,8 +83,8 @@ export default function AdminDashboard() {
   };
 
   const agents = [
-    { name: 'Scraper Agent', status: 'Active', load: '12%', color: 'text-blue-500', icon: Globe },
-    { name: 'Analyst Agent', status: 'Active', load: '45%', color: 'text-purple-500', icon: Terminal },
+    { name: 'Scraper Agent', status: health?.status === 'online' ? 'Active' : 'Offline', load: '12%', color: 'text-blue-500', icon: Globe },
+    { name: 'Analyst Agent', status: health?.status === 'online' ? 'Active' : 'Offline', load: '45%', color: 'text-purple-500', icon: Terminal },
     { name: 'Validator Agent', status: 'Idle', load: '0%', color: 'text-green-500', icon: CheckCircle },
     { name: 'Health Agent', status: 'Active', load: '5%', color: 'text-orange-500', icon: Shield },
   ];
@@ -84,6 +113,7 @@ export default function AdminDashboard() {
               { id: 'agents', label: 'Neural Agents', icon: Cpu },
               { id: 'config', label: 'Prompt Engine', icon: Terminal },
               { id: 'scraping', label: 'Crawl Routes', icon: Globe },
+              { id: 'history', label: 'Prediction Logs', icon: Database },
               { id: 'security', label: 'Vault Access', icon: Lock },
             ].map((item) => (
               <button
@@ -112,18 +142,21 @@ export default function AdminDashboard() {
               <h2 className="text-4xl font-black tracking-tight capitalize font-outfit">{activeTab.replace('-', ' ')}</h2>
               <p className="text-muted-foreground mt-1">Modify core system parameters and monitor agent health.</p>
             </div>
-            <button 
-              onClick={handleSave}
-              disabled={isSaving}
-              className="px-8 py-3 bg-primary text-primary-foreground hover:scale-105 active:scale-95 rounded-2xl font-bold transition-all flex items-center gap-2 shadow-xl shadow-primary/20 disabled:opacity-50"
-            >
-              {isSaving ? <RefreshCcw className="animate-spin" size={18} /> : 'Synchronize Config'}
-            </button>
+            {activeTab !== 'history' && (
+              <button 
+                onClick={handleSave}
+                disabled={isSaving}
+                className="px-8 py-3 bg-primary text-primary-foreground hover:scale-105 active:scale-95 rounded-2xl font-bold transition-all flex items-center gap-2 shadow-xl shadow-primary/20 disabled:opacity-50"
+              >
+                {isSaving ? <RefreshCcw className="animate-spin" size={18} /> : 'Synchronize Config'}
+              </button>
+            )}
           </header>
 
           <AnimatePresence mode="wait">
             {activeTab === 'agents' && (
               <motion.div
+                key="agents"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -139,7 +172,7 @@ export default function AdminDashboard() {
                         <div>
                           <h3 className="text-lg font-black">{agent.name}</h3>
                           <div className="flex items-center gap-2 mt-1">
-                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                            <div className={`w-2 h-2 rounded-full ${agent.status === 'Active' ? 'bg-green-500 animate-pulse' : 'bg-muted'}`} />
                             <span className="text-xs font-bold text-muted-foreground uppercase">{agent.status}</span>
                           </div>
                         </div>
@@ -155,9 +188,18 @@ export default function AdminDashboard() {
                 <div className="glass-card">
                   <h3 className="text-xl font-black mb-8 flex items-center gap-3">
                     <Activity size={24} className="text-primary" />
-                    AI Provider Latency
+                    Neural Gateway Status
                   </h3>
                   <div className="space-y-6">
+                    <div className="flex items-center justify-between p-6 rounded-2xl bg-secondary/30 border border-border/50">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-3 h-3 rounded-full ${health?.dbStatus === 'online' ? 'bg-green-500' : 'bg-red-500'}`} />
+                        <div>
+                          <p className="font-bold text-lg">Neon PostgreSQL</p>
+                          <p className="text-xs font-medium text-muted-foreground">Status: {health?.dbStatus || 'Checking...'}</p>
+                        </div>
+                      </div>
+                    </div>
                     {Object.entries(config.aiProviders).map(([id, provider]: [string, any]) => (
                       <div key={id} className="flex items-center justify-between p-6 rounded-2xl bg-secondary/30 border border-border/50">
                         <div className="flex items-center gap-4">
@@ -188,6 +230,7 @@ export default function AdminDashboard() {
 
             {activeTab === 'config' && (
               <motion.div
+                key="config"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -235,6 +278,7 @@ export default function AdminDashboard() {
 
             {activeTab === 'scraping' && (
               <motion.div
+                key="scraping"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -279,17 +323,68 @@ export default function AdminDashboard() {
                       </div>
                     ))}
                   </div>
+                </div>
+              </motion.div>
+            )}
 
-                  <div className="mt-12 p-6 rounded-2xl bg-primary/5 border border-primary/20">
-                    <div className="flex items-center gap-3 mb-2">
-                      <Cloud size={18} className="text-primary" />
-                      <h4 className="text-sm font-black">Hybrid Sync Mode</h4>
+            {activeTab === 'history' && (
+              <motion.div
+                key="history"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-8"
+              >
+                <div className="glass-card">
+                  <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-3">
+                      <Database size={24} className="text-green-500" />
+                      <h3 className="text-xl font-black">Neural Prediction Logs</h3>
                     </div>
-                    <p className="text-xs text-muted-foreground mb-6">Combine real-time scraping with official API data for maximum accuracy.</p>
-                    <div className="flex gap-4">
-                      <button className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-black shadow-lg shadow-primary/20">DEEP CRAWL ACTIVE</button>
-                      <button className="px-5 py-2.5 rounded-xl bg-secondary text-muted-foreground text-xs font-black">API ONLY</button>
-                    </div>
+                    <button 
+                      onClick={() => fetchData()}
+                      className="p-2 rounded-xl bg-secondary hover:bg-secondary/80 transition-all"
+                    >
+                      <RefreshCcw size={18} />
+                    </button>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-border/50">
+                          <th className="pb-4 text-xs font-black text-muted-foreground uppercase tracking-widest">Timestamp</th>
+                          <th className="pb-4 text-xs font-black text-muted-foreground uppercase tracking-widest">Target</th>
+                          <th className="pb-4 text-xs font-black text-muted-foreground uppercase tracking-widest">Actual Odds</th>
+                          <th className="pb-4 text-xs font-black text-muted-foreground uppercase tracking-widest">Confidence</th>
+                          <th className="pb-4 text-xs font-black text-muted-foreground uppercase tracking-widest text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/30">
+                        {history.map((slip) => (
+                          <tr key={slip.id} className="group hover:bg-foreground/[0.02] transition-colors">
+                            <td className="py-4 font-mono text-xs">{new Date(slip.createdAt).toLocaleString()}</td>
+                            <td className="py-4 font-bold">{slip.targetOdds}x</td>
+                            <td className="py-4">
+                              <span className="px-2 py-1 rounded bg-primary/5 text-primary text-xs font-bold">{slip.totalOdds}</span>
+                            </td>
+                            <td className="py-4">
+                              <div className="flex items-center gap-2">
+                                <div className="w-16 h-1 bg-secondary rounded-full overflow-hidden">
+                                  <div className="h-full bg-primary" style={{ width: `${slip.confidence}%` }} />
+                                </div>
+                                <span className="text-xs font-bold">{slip.confidence}%</span>
+                              </div>
+                            </td>
+                            <td className="py-4 text-right">
+                              <button className="p-2 text-muted-foreground hover:text-primary transition-all">
+                                <Eye size={16} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               </motion.div>
@@ -297,6 +392,7 @@ export default function AdminDashboard() {
 
             {activeTab === 'security' && (
               <motion.div
+                key="security"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -332,14 +428,6 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                     ))}
-                  </div>
-
-                  <div className="mt-12 flex items-center gap-4 p-6 rounded-2xl bg-orange-500/10 border border-orange-500/20">
-                    <Shield size={24} className="text-orange-500 shrink-0" />
-                    <div>
-                      <p className="text-sm font-black text-orange-500">Security Enforcement Active</p>
-                      <p className="text-xs text-orange-500/70">Keys are encrypted at rest and never exposed in client-side logs.</p>
-                    </div>
                   </div>
                 </div>
               </motion.div>

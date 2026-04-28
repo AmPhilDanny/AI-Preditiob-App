@@ -3,6 +3,7 @@ import { ScraperAgent } from '@/lib/agents/scraper';
 import { AnalystAgent } from '@/lib/agents/analyst';
 import { HealthAgent } from '@/lib/agents/health';
 import { configService } from '@/lib/services/config';
+import prisma from '@/lib/prisma';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
     provider: 'gemini',
     apiKey: config.aiProviders.gemini.apiKey,
     model: 'gemini-1.5-pro',
-    systemPrompt: config.agentPrompts.analyst // Passing the admin-defined prompt
+    systemPrompt: config.agentPrompts.analyst
   });
   const health = new HealthAgent();
 
@@ -24,6 +25,18 @@ export async function GET(request: Request) {
     const matches = await scraper.fetchHybridData();
     const slips = await analyst.generateSlips(matches, targets);
     const systemHealth = await health.checkSystemHealth();
+
+    // Persist slips to database for history tracking
+    await Promise.all(slips.map(slip => 
+      prisma.predictionSlip.create({
+        data: {
+          totalOdds: slip.totalOdds,
+          confidence: slip.confidence,
+          targetOdds: slip.targetOdds,
+          matches: slip.matches as any
+        }
+      })
+    ));
 
     return NextResponse.json({
       success: true,
