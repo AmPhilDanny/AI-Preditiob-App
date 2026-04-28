@@ -41,9 +41,21 @@ class ConfigService {
       scrapingUrls: dbConfig.scrapingUrls,
       footballApiKey: dbConfig.footballApiKey || '',
       aiProviders: {
-        gemini: { apiKey: dbConfig.geminiApiKey || '', enabled: !!dbConfig.geminiApiKey, status: 'online' },
-        grok: { apiKey: dbConfig.grokApiKey || '', enabled: !!dbConfig.grokApiKey, status: 'offline' },
-        mistral: { apiKey: dbConfig.mistralApiKey || '', enabled: !!dbConfig.mistralApiKey, status: 'offline' },
+        gemini: { 
+          apiKey: dbConfig.geminiApiKey || '', 
+          enabled: dbConfig.geminiEnabled, 
+          status: dbConfig.geminiEnabled ? 'online' : 'offline' 
+        },
+        grok: { 
+          apiKey: dbConfig.grokApiKey || '', 
+          enabled: dbConfig.grokEnabled, 
+          status: dbConfig.grokEnabled ? 'online' : 'offline' 
+        },
+        mistral: { 
+          apiKey: dbConfig.mistralApiKey || '', 
+          enabled: dbConfig.mistralEnabled, 
+          status: dbConfig.mistralEnabled ? 'online' : 'offline' 
+        },
       },
       agentPrompts: {
         analyst: dbConfig.analystPrompt,
@@ -59,16 +71,24 @@ class ConfigService {
         scrapingUrls: newConfig.scrapingUrls,
         footballApiKey: newConfig.footballApiKey,
         geminiApiKey: newConfig.aiProviders?.gemini?.apiKey,
+        geminiEnabled: newConfig.aiProviders?.gemini?.enabled,
         grokApiKey: newConfig.aiProviders?.grok?.apiKey,
+        grokEnabled: newConfig.aiProviders?.grok?.enabled,
         mistralApiKey: newConfig.aiProviders?.mistral?.apiKey,
+        mistralEnabled: newConfig.aiProviders?.mistral?.enabled,
         analystPrompt: newConfig.agentPrompts?.analyst,
         scraperPrompt: newConfig.agentPrompts?.scraper,
       },
       create: {
         id: 'default',
         scrapingUrls: newConfig.scrapingUrls || [],
-        footballApiKey: newConfig.footballApiKey,
-        geminiApiKey: newConfig.aiProviders?.gemini?.apiKey,
+        footballApiKey: newConfig.footballApiKey || '',
+        geminiApiKey: newConfig.aiProviders?.gemini?.apiKey || '',
+        geminiEnabled: newConfig.aiProviders?.gemini?.enabled ?? true,
+        grokApiKey: newConfig.aiProviders?.grok?.apiKey || '',
+        grokEnabled: newConfig.aiProviders?.grok?.enabled ?? false,
+        mistralApiKey: newConfig.aiProviders?.mistral?.apiKey || '',
+        mistralEnabled: newConfig.aiProviders?.mistral?.enabled ?? false,
         analystPrompt: newConfig.agentPrompts?.analyst || '',
         scraperPrompt: newConfig.agentPrompts?.scraper || '',
       }

@@ -13,8 +13,11 @@ model SystemConfig {
   scrapingUrls  String[]
   footballApiKey String?
   geminiApiKey  String?
+  geminiEnabled Boolean  @default(true)
   grokApiKey    String?
+  grokEnabled   Boolean  @default(false)
   mistralApiKey String?
+  mistralEnabled Boolean @default(false)
   analystPrompt String   @db.Text
   scraperPrompt String   @db.Text
   updatedAt     DateTime @updatedAt

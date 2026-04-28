@@ -270,7 +270,7 @@ export default function AdminPage() {
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <label className="section-label">Analyst Reasoning</label>
-                        <span className="badge badge-purple">Gemini Optimised</span>
+                        <span className="badge badge-purple">AI Optimised</span>
                       </div>
                       <textarea
                         rows={8}
@@ -419,7 +419,7 @@ export default function AdminPage() {
                   <div>
                     <p className="text-sm font-semibold text-amber-600 dark:text-amber-400">Security Notice</p>
                     <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-0.5">
-                      Credentials are stored in encrypted environment variables and are never exposed in client-side code or logs.
+                      Credentials are encrypted and stored securely. Be careful when updating these values.
                     </p>
                   </div>
                 </div>
@@ -431,19 +431,38 @@ export default function AdminPage() {
                     </h3>
                   </div>
                   <div className="p-6 space-y-5">
-                    {[
-                      { id: 'football', label: 'Football-API Token',         value: config?.footballApiKey },
-                      { id: 'gemini',   label: 'Gemini Neural Key',           value: config?.aiProviders?.gemini?.apiKey },
-                      { id: 'db',       label: 'Neon DB Connection String',   value: 'postgres://***@***.neon.tech/neondb' },
-                    ].map(({ id, label, value }) => (
+                    <div>
+                      <label className="section-label block mb-2">Football-API Token</label>
+                      <div className="relative">
+                        <input
+                          type={showKey['football'] ? 'text' : 'password'}
+                          value={config?.footballApiKey || ''}
+                          onChange={e => setConfig({ ...config, footballApiKey: e.target.value })}
+                          className="form-input pr-12"
+                          placeholder="••••••••••••••••••••••••"
+                        />
+                        <button
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                          onClick={() => setShowKey(prev => ({ ...prev, football: !prev['football'] }))}
+                        >
+                          {showKey['football'] ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {['gemini', 'grok', 'mistral'].map(id => (
                       <div key={id}>
-                        <label className="section-label block mb-2">{label}</label>
+                        <label className="section-label block mb-2 capitalize">{id} Neural Key</label>
                         <div className="relative">
                           <input
                             type={showKey[id] ? 'text' : 'password'}
-                            readOnly
-                            value={value || '••••••••••••••••••••••••'}
+                            value={config?.aiProviders?.[id]?.apiKey || ''}
+                            onChange={e => {
+                              const u = { ...config.aiProviders, [id]: { ...config.aiProviders[id], apiKey: e.target.value } };
+                              setConfig({ ...config, aiProviders: u });
+                            }}
                             className="form-input pr-12"
+                            placeholder="••••••••••••••••••••••••"
                           />
                           <button
                             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
