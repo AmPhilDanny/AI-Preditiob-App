@@ -16,7 +16,7 @@ export async function GET(request: Request) {
   const analyst = new AnalystAgent({
     provider: 'gemini',
     apiKey: config.aiProviders.gemini.apiKey,
-    model: 'gemini-1.5-pro',
+    model: 'gemini-2.0-flash-exp',
     systemPrompt: config.agentPrompts.analyst
   });
   const health = new HealthAgent();

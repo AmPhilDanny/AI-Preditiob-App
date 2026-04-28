@@ -29,6 +29,8 @@ model SystemConfig {
   mistralEnabled Boolean @default(false)
   analystPrompt String   @db.Text
   scraperPrompt String   @db.Text
+  aiAnalysisEnabled Boolean @default(true)
+  predictionThreshold Int @default(75)
   updatedAt     DateTime @updatedAt
 }
 
