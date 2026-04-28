@@ -18,6 +18,13 @@ const TABS = [
   { id: 'security', label: 'Vault',           icon: Lock },
 ];
 
+const FOOTBALL_PROVIDERS = [
+  { id: 'api1', name: 'API-Football (Sports)', url: 'api-sports.io' },
+  { id: 'api2', name: 'Football-Data.org', url: 'football-data.org' },
+  { id: 'api3', name: 'TheSportsDB.com', url: 'thesportsdb.com' },
+  { id: 'api4', name: 'APIFootball.com', url: 'apifootball.com' },
+];
+
 const fadeIn = {
   hidden: { opacity: 0, y: 10 },
   show:   { opacity: 1, y: 0, transition: { duration: 0.25 } },
@@ -65,14 +72,17 @@ export default function AdminPage() {
   /* ── Save config ─────────────────────────────────────────── */
   const handleSave = async () => {
     setSaving(true);
-    await fetch('/api/admin/config', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(config),
-    });
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+    try {
+      await fetch('/api/admin/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } finally {
+      setSaving(false);
+    }
   };
 
   /* ── Logout ──────────────────────────────────────────────── */
@@ -108,7 +118,6 @@ export default function AdminPage() {
 
   /* ── Update Slip Status ──────────────────────────────────── */
   const updateSlipStatus = async (id: string, status: string) => {
-    // In a real app, this would hit an API to update the slip outcome
     setHistory(prev => prev.map(s => s.id === id ? { ...s, status } : s));
   };
 
@@ -282,34 +291,36 @@ export default function AdminPage() {
                       <h3 className="font-semibold text-sm text-foreground">Football Data Gateways</h3>
                     </div>
                     <div className="divide-y divide-border">
-                      {config?.footballApis && Object.entries(config.footballApis).map(([id, p]: [string, any]) => (
-                        <div key={id} className="px-6 py-4 flex items-center justify-between gap-4">
-                          <div className="flex items-center gap-3 min-w-0">
-                            <Database size={18} className="text-muted-foreground shrink-0" />
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-foreground capitalize">{id.replace('api', 'Provider ')}</p>
-                              <p className="text-xs text-muted-foreground truncate">External API</p>
+                      {FOOTBALL_PROVIDERS.map((provider) => {
+                        const p = config?.footballApis?.[provider.id] || { enabled: false };
+                        return (
+                          <div key={provider.id} className="px-6 py-4 flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <Database size={18} className="text-muted-foreground shrink-0" />
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-foreground">{provider.name}</p>
+                                <p className="text-xs text-muted-foreground truncate">{provider.url}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className={p.enabled ? 'badge badge-purple' : 'badge badge-gray'}>
+                                {p.enabled ? 'Active' : 'Inactive'}
+                              </span>
+                              <button
+                                onClick={() => {
+                                  const u = { ...config.footballApis };
+                                  Object.keys(u).forEach(key => u[key].enabled = false);
+                                  u[provider.id] = { ...u[provider.id], enabled: true };
+                                  setConfig({ ...config, footballApis: u });
+                                }}
+                                className="btn-ghost text-xs px-3 py-1"
+                              >
+                                Enable
+                              </button>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <span className={p.enabled ? 'badge badge-purple' : 'badge badge-gray'}>
-                              {p.enabled ? 'Active' : 'Inactive'}
-                            </span>
-                            <button
-                              onClick={() => {
-                                const u = { ...config.footballApis };
-                                // Ensure only one is enabled if preferred, or just toggle
-                                Object.keys(u).forEach(key => u[key].enabled = false);
-                                u[id].enabled = true;
-                                setConfig({ ...config, footballApis: u });
-                              }}
-                              className="btn-ghost text-xs px-3 py-1"
-                            >
-                              Enable
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -534,46 +545,46 @@ export default function AdminPage() {
                       </h3>
                     </div>
                     <div className="p-6 space-y-6">
-                      {['api1', 'api2', 'api3'].map(id => (
-                        <div key={id} className="space-y-2">
+                      {FOOTBALL_PROVIDERS.map((provider) => (
+                        <div key={provider.id} className="space-y-2">
                           <div className="flex items-center justify-between">
-                            <label className="section-label capitalize">{id.replace('api', 'Provider ')} Key</label>
+                            <label className="section-label">{provider.name} Key</label>
                             <div className="flex items-center gap-2">
                               <button
-                                onClick={() => testConnection('football', id, config?.footballApis?.[id]?.apiKey)}
-                                disabled={testing[`football-${id}`] || !config?.footballApis?.[id]?.apiKey}
+                                onClick={() => testConnection('football', provider.id, config?.footballApis?.[provider.id]?.apiKey)}
+                                disabled={testing[`football-${provider.id}`] || !config?.footballApis?.[provider.id]?.apiKey}
                                 className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded border border-border hover:border-primary transition-colors flex items-center gap-1.5"
                               >
-                                {testing[`football-${id}`] ? <Loader2 size={10} className="animate-spin" /> : <Play size={10} />}
+                                {testing[`football-${provider.id}`] ? <Loader2 size={10} className="animate-spin" /> : <Play size={10} />}
                                 Test
                               </button>
-                              {testRes[`football-${id}`] && (
-                                <span className={`text-[10px] font-bold ${testRes[`football-${id}`].success ? 'text-emerald-500' : 'text-destructive'}`}>
-                                  {testRes[`football-${id}`].success ? 'PASS' : 'FAIL'}
+                              {testRes[`football-${provider.id}`] && (
+                                <span className={`text-[10px] font-bold ${testRes[`football-${provider.id}`].success ? 'text-emerald-500' : 'text-destructive'}`}>
+                                  {testRes[`football-${provider.id}`].success ? 'PASS' : 'FAIL'}
                                 </span>
                               )}
                             </div>
                           </div>
                           <div className="relative">
                             <input
-                              type={showKey[`football-${id}`] ? 'text' : 'password'}
-                              value={config?.footballApis?.[id]?.apiKey || ''}
+                              type={showKey[`football-${provider.id}`] ? 'text' : 'password'}
+                              value={config?.footballApis?.[provider.id]?.apiKey || ''}
                               onChange={e => {
-                                const u = { ...config.footballApis, [id]: { ...config.footballApis[id], apiKey: e.target.value } };
+                                const u = { ...config.footballApis, [provider.id]: { ...config.footballApis[provider.id], apiKey: e.target.value } };
                                 setConfig({ ...config, footballApis: u });
                               }}
                               className="form-input pr-10 text-xs"
-                              placeholder="Provider API Key"
+                              placeholder={`${provider.name} Key`}
                             />
                             <button
                               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                              onClick={() => setShowKey(prev => ({ ...prev, [`football-${id}`]: !prev[`football-${id}`] }))}
+                              onClick={() => setShowKey(prev => ({ ...prev, [`football-${provider.id}`]: !prev[`football-${provider.id}`] }))}
                             >
-                              {showKey[`football-${id}`] ? <EyeOff size={14} /> : <Eye size={14} />}
+                              {showKey[`football-${provider.id}`] ? <EyeOff size={14} /> : <Eye size={14} />}
                             </button>
                           </div>
-                          {testRes[`football-${id}`] && !testRes[`football-${id}`].success && (
-                            <p className="text-[10px] text-destructive mt-1">{testRes[`football-${id}`].msg}</p>
+                          {testRes[`football-${provider.id}`] && !testRes[`football-${provider.id}`].success && (
+                            <p className="text-[10px] text-destructive mt-1">{testRes[`football-${provider.id}`].msg}</p>
                           )}
                         </div>
                       ))}

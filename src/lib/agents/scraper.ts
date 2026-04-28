@@ -2,6 +2,7 @@ import { configService } from "../services/config";
 import { APIFootballService } from "../services/api-football";
 import { FootballDataService } from "../services/football-data";
 import { TheSportsDBService } from "../services/the-sports-db";
+import { APIFootballDotComService } from "../services/api-football-com";
 import { FootballApiService, NormalizedFixture } from "../services/football-api.interface";
 
 export interface MatchData {
@@ -33,6 +34,9 @@ export class ScraperAgent {
     if (config.footballApis.api3.enabled && config.footballApis.api3.apiKey) {
       return new TheSportsDBService(config.footballApis.api3.apiKey);
     }
+    if (config.footballApis.api4.enabled && config.footballApis.api4.apiKey) {
+      return new APIFootballDotComService(config.footballApis.api4.apiKey);
+    }
     
     return null;
   }
@@ -51,7 +55,6 @@ export class ScraperAgent {
       }
     }
 
-    // Default base matches for fallback/demonstration
     const baseMatches = [
       { name: "Arsenal vs Man City", homeOdd: 2.05, drawOdd: 3.40, awayOdd: 3.20, league: "Premier League" },
       { name: "Real Madrid vs Barcelona", homeOdd: 1.95, drawOdd: 3.60, awayOdd: 3.80, league: "La Liga" },
@@ -60,7 +63,6 @@ export class ScraperAgent {
       { name: "Inter vs Milan", homeOdd: 2.20, drawOdd: 3.20, awayOdd: 3.40, league: "Serie A" }
     ];
 
-    // If API has data, use it. Otherwise use base matches.
     if (fixtures.length > 0) {
       return fixtures.map(f => ({
         id: f.externalId,
@@ -68,7 +70,7 @@ export class ScraperAgent {
         awayTeam: f.awayTeam,
         league: f.league,
         odds: {
-          home: 1.0 + Math.random() * 2, // Mock odds if not available in specific API
+          home: 1.0 + Math.random() * 2,
           draw: 2.0 + Math.random() * 2,
           away: 2.0 + Math.random() * 3
         },

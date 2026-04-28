@@ -6,122 +6,112 @@ export interface SystemConfig {
     api1: { apiKey: string; enabled: boolean };
     api2: { apiKey: string; enabled: boolean };
     api3: { apiKey: string; enabled: boolean };
+    api4: { apiKey: string; enabled: boolean };
   };
-  aiProviders: {
-    gemini: { apiKey: string; enabled: boolean; status: 'online' | 'offline' | 'error' };
-    grok: { apiKey: string; enabled: boolean; status: 'online' | 'offline' | 'error' };
-    mistral: { apiKey: string; enabled: boolean; status: 'online' | 'offline' | 'error' };
-  };
-  agentPrompts: {
-    analyst: string;
-    scraper: string;
-  };
+  gemini: { apiKey: string; enabled: boolean };
+  grok: { apiKey: string; enabled: boolean };
+  aiAnalysisEnabled: boolean;
+  predictionThreshold: number;
 }
 
 class ConfigService {
-  async getConfig(): Promise<SystemConfig> {
-    const dbConfig = await prisma.systemConfig.findUnique({
-      where: { id: 'default' }
-    });
+  private static instance: ConfigService;
 
-    if (!dbConfig) {
-      return {
-        scrapingUrls: ['https://www.bet365.com', 'https://www.betway.com'],
-        footballApis: {
-          api1: { apiKey: '', enabled: true },
-          api2: { apiKey: '', enabled: false },
-          api3: { apiKey: '', enabled: false },
-        },
-        aiProviders: {
-          gemini: { apiKey: process.env.GEMINI_API_KEY || '', enabled: true, status: 'online' },
-          grok: { apiKey: '', enabled: false, status: 'offline' },
-          mistral: { apiKey: '', enabled: false, status: 'offline' },
-        },
-        agentPrompts: {
-          analyst: "You are an expert football analyst. Your goal is to identify low-risk outcomes and combine them into high-value slips.",
-          scraper: "You are a master data gatherer. Focus on fetching real-time odds and team news."
-        }
-      };
+  private constructor() {}
+
+  public static getInstance(): ConfigService {
+    if (!ConfigService.instance) {
+      ConfigService.instance = new ConfigService();
     }
-
-    return {
-      scrapingUrls: dbConfig.scrapingUrls,
-      footballApis: {
-        api1: { apiKey: dbConfig.footballApiKey1 || '', enabled: dbConfig.footballApi1Enabled },
-        api2: { apiKey: dbConfig.footballApiKey2 || '', enabled: dbConfig.footballApi2Enabled },
-        api3: { apiKey: dbConfig.footballApiKey3 || '', enabled: dbConfig.footballApi3Enabled },
-      },
-      aiProviders: {
-        gemini: { 
-          apiKey: dbConfig.geminiApiKey || '', 
-          enabled: dbConfig.geminiEnabled, 
-          status: dbConfig.geminiEnabled ? 'online' : 'offline' 
-        },
-        grok: { 
-          apiKey: dbConfig.grokApiKey || '', 
-          enabled: dbConfig.grokEnabled, 
-          status: dbConfig.grokEnabled ? 'online' : 'offline' 
-        },
-        mistral: { 
-          apiKey: dbConfig.mistralApiKey || '', 
-          enabled: dbConfig.mistralEnabled, 
-          status: dbConfig.mistralEnabled ? 'online' : 'offline' 
-        },
-      },
-      agentPrompts: {
-        analyst: dbConfig.analystPrompt,
-        scraper: dbConfig.scraperPrompt
-      }
-    };
+    return ConfigService.instance;
   }
 
-  async updateConfig(newConfig: Partial<SystemConfig>) {
-    await prisma.systemConfig.upsert({
+  async getConfig(): Promise<SystemConfig> {
+    try {
+      const config = await prisma.systemConfig.findFirst();
+      
+      if (!config) {
+        return this.getDefaultConfig();
+      }
+
+      return {
+        scrapingUrls: config.scrapingUrls,
+        footballApis: {
+          api1: { apiKey: config.footballApiKey1 || '', enabled: config.footballApi1Enabled },
+          api2: { apiKey: config.footballApiKey2 || '', enabled: config.footballApi2Enabled },
+          api3: { apiKey: config.footballApiKey3 || '', enabled: config.footballApi3Enabled },
+          api4: { apiKey: config.footballApiKey4 || '', enabled: config.footballApi4Enabled },
+        },
+        gemini: { apiKey: config.geminiApiKey || '', enabled: config.geminiEnabled },
+        grok: { apiKey: config.grokApiKey || '', enabled: config.grokEnabled },
+        aiAnalysisEnabled: config.aiAnalysisEnabled,
+        predictionThreshold: config.predictionThreshold,
+      };
+    } catch (error) {
+      console.error("Failed to fetch config from DB:", error);
+      return this.getDefaultConfig();
+    }
+  }
+
+  async updateConfig(updates: Partial<SystemConfig>) {
+    const current = await this.getConfig();
+    const merged = { ...current, ...updates };
+
+    return prisma.systemConfig.upsert({
       where: { id: 'default' },
       update: {
-        scrapingUrls: newConfig.scrapingUrls,
-        
-        footballApiKey1: newConfig.footballApis?.api1?.apiKey,
-        footballApi1Enabled: newConfig.footballApis?.api1?.enabled,
-        footballApiKey2: newConfig.footballApis?.api2?.apiKey,
-        footballApi2Enabled: newConfig.footballApis?.api2?.enabled,
-        footballApiKey3: newConfig.footballApis?.api3?.apiKey,
-        footballApi3Enabled: newConfig.footballApis?.api3?.enabled,
-
-        geminiApiKey: newConfig.aiProviders?.gemini?.apiKey,
-        geminiEnabled: newConfig.aiProviders?.gemini?.enabled,
-        grokApiKey: newConfig.aiProviders?.grok?.apiKey,
-        grokEnabled: newConfig.aiProviders?.grok?.enabled,
-        mistralApiKey: newConfig.aiProviders?.mistral?.apiKey,
-        mistralEnabled: newConfig.aiProviders?.mistral?.enabled,
-        
-        analystPrompt: newConfig.agentPrompts?.analyst,
-        scraperPrompt: newConfig.agentPrompts?.scraper,
+        scrapingUrls: merged.scrapingUrls,
+        footballApiKey1: merged.footballApis.api1.apiKey,
+        footballApi1Enabled: merged.footballApis.api1.enabled,
+        footballApiKey2: merged.footballApis.api2.apiKey,
+        footballApi2Enabled: merged.footballApis.api2.enabled,
+        footballApiKey3: merged.footballApis.api3.apiKey,
+        footballApi3Enabled: merged.footballApis.api3.enabled,
+        footballApiKey4: merged.footballApis.api4.apiKey,
+        footballApi4Enabled: merged.footballApis.api4.enabled,
+        geminiApiKey: merged.gemini.apiKey,
+        geminiEnabled: merged.gemini.enabled,
+        grokApiKey: merged.grok.apiKey,
+        grokEnabled: merged.grok.enabled,
+        aiAnalysisEnabled: merged.aiAnalysisEnabled,
+        predictionThreshold: merged.predictionThreshold,
       },
       create: {
         id: 'default',
-        scrapingUrls: newConfig.scrapingUrls || [],
-        
-        footballApiKey1: newConfig.footballApis?.api1?.apiKey || '',
-        footballApi1Enabled: newConfig.footballApis?.api1?.enabled ?? true,
-        footballApiKey2: newConfig.footballApis?.api2?.apiKey || '',
-        footballApi2Enabled: newConfig.footballApis?.api2?.enabled ?? false,
-        footballApiKey3: newConfig.footballApis?.api3?.apiKey || '',
-        footballApi3Enabled: newConfig.footballApis?.api3?.enabled ?? false,
-
-        geminiApiKey: newConfig.aiProviders?.gemini?.apiKey || '',
-        geminiEnabled: newConfig.aiProviders?.gemini?.enabled ?? true,
-        grokApiKey: newConfig.aiProviders?.grok?.apiKey || '',
-        grokEnabled: newConfig.aiProviders?.grok?.enabled ?? false,
-        mistralApiKey: newConfig.aiProviders?.mistral?.apiKey || '',
-        mistralEnabled: newConfig.aiProviders?.mistral?.enabled ?? false,
-
-        analystPrompt: newConfig.agentPrompts?.analyst || '',
-        scraperPrompt: newConfig.agentPrompts?.scraper || '',
-      }
+        scrapingUrls: merged.scrapingUrls,
+        footballApiKey1: merged.footballApis.api1.apiKey,
+        footballApi1Enabled: merged.footballApis.api1.enabled,
+        footballApiKey2: merged.footballApis.api2.apiKey,
+        footballApi2Enabled: merged.footballApis.api2.enabled,
+        footballApiKey3: merged.footballApis.api3.apiKey,
+        footballApi3Enabled: merged.footballApis.api3.enabled,
+        footballApiKey4: merged.footballApis.api4.apiKey,
+        footballApi4Enabled: merged.footballApis.api4.enabled,
+        geminiApiKey: merged.gemini.apiKey,
+        geminiEnabled: merged.gemini.enabled,
+        grokApiKey: merged.grok.apiKey,
+        grokEnabled: merged.grok.enabled,
+        aiAnalysisEnabled: merged.aiAnalysisEnabled,
+        predictionThreshold: merged.predictionThreshold,
+      },
     });
-    return this.getConfig();
+  }
+
+  private getDefaultConfig(): SystemConfig {
+    return {
+      scrapingUrls: [],
+      footballApis: {
+        api1: { apiKey: '', enabled: true },
+        api2: { apiKey: '', enabled: false },
+        api3: { apiKey: '', enabled: false },
+        api4: { apiKey: '', enabled: false },
+      },
+      gemini: { apiKey: '', enabled: true },
+      grok: { apiKey: '', enabled: false },
+      aiAnalysisEnabled: true,
+      predictionThreshold: 75,
+    };
   }
 }
 
-export const configService = new ConfigService();
+export const configService = ConfigService.getInstance();
