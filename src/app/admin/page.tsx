@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Settings, 
@@ -236,9 +236,6 @@ export default function AdminDashboard() {
                     </div>
                   ))}
                 </div>
-              </div>
-            </div>
-          )}
 
                 <div className="mt-8 pt-8 border-t border-white/5">
                   <h4 className="text-sm font-bold mb-4">Crawler Strategy</h4>
