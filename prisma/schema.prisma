@@ -9,9 +9,16 @@ datasource db {
 }
 
 model SystemConfig {
-  id            String   @id @default("default")
-  scrapingUrls  String[]
-  footballApiKey String?
+  id              String   @id @default("default")
+  scrapingUrls    String[]
+  
+  footballApiKey1 String?
+  footballApi1Enabled Boolean @default(true)
+  footballApiKey2 String?
+  footballApi2Enabled Boolean @default(false)
+  footballApiKey3 String?
+  footballApi3Enabled Boolean @default(false)
+
   geminiApiKey  String?
   geminiEnabled Boolean  @default(true)
   grokApiKey    String?
@@ -29,5 +36,7 @@ model PredictionSlip {
   confidence  Int
   targetOdds  Int
   matches     Json     // Store the list of matches in the slip
+  status      String   @default("PENDING") // PENDING, WON, LOST
+  actualResults Json?  // Store actual scores for learning
   createdAt   DateTime @default(now())
 }

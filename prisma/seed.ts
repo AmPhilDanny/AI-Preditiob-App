@@ -15,7 +15,12 @@ async function main() {
         'https://www.betway.com',
         'https://www.sportybet.com'
       ],
-      footballApiKey: '',
+      footballApiKey1: '',
+      footballApi1Enabled: true,
+      footballApiKey2: '',
+      footballApi2Enabled: false,
+      footballApiKey3: '',
+      footballApi3Enabled: false,
       geminiApiKey: '',
       geminiEnabled: true,
       grokApiKey: '',
@@ -33,7 +38,7 @@ async function main() {
 main()
   .catch((e) => {
     console.error('Seed failed:', e);
-    process.exit(1);
+    process.exit(1)
   })
   .finally(async () => {
     await prisma.$disconnect();
