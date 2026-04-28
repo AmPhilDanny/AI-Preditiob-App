@@ -20,7 +20,11 @@ export class ScraperAgent {
 
   async fetchHybridData(): Promise<MatchData[]> {
     const config = await configService.getConfig();
-    const apiService = config.footballApiKey ? new APIFootballService(config.footballApiKey) : null;
+    
+    // Find the active football API key
+    const activeProvider = Object.values(config.footballApis).find(p => p.enabled);
+    const activeKey = activeProvider?.apiKey;
+    const apiService = activeKey ? new APIFootballService(activeKey) : null;
     
     console.log(`Gathering data from ${config.scrapingUrls.length} sources and Football-API...`);
     
