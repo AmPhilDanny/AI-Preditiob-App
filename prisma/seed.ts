@@ -1,8 +1,8 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+import { PrismaClient } from '@prisma/client';
+const seedClient = new PrismaClient();
 
 async function main() {
-  const config = await prisma.systemConfig.upsert({
+  const config = await seedClient.systemConfig.upsert({
     where: { id: 'default' },
     update: {},
     create: {
@@ -23,5 +23,5 @@ main()
     process.exit(1);
   })
   .finally(async () => {
-    await prisma.$disconnect();
+    await seedClient.$disconnect();
   });
