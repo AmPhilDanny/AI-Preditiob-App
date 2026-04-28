@@ -8,10 +8,16 @@ export interface SystemConfig {
     api3: { apiKey: string; enabled: boolean };
     api4: { apiKey: string; enabled: boolean };
   };
-  gemini: { apiKey: string; enabled: boolean };
-  grok: { apiKey: string; enabled: boolean };
+  aiProviders: {
+    gemini: { apiKey: string; enabled: boolean };
+    grok: { apiKey: string; enabled: boolean };
+  };
   aiAnalysisEnabled: boolean;
   predictionThreshold: number;
+  agentPrompts: {
+    analyst: string;
+    scraper: string;
+  };
 }
 
 class ConfigService {
@@ -42,10 +48,16 @@ class ConfigService {
           api3: { apiKey: config.footballApiKey3 || '', enabled: config.footballApi3Enabled },
           api4: { apiKey: config.footballApiKey4 || '', enabled: config.footballApi4Enabled },
         },
-        gemini: { apiKey: config.geminiApiKey || '', enabled: config.geminiEnabled },
-        grok: { apiKey: config.grokApiKey || '', enabled: config.grokEnabled },
+        aiProviders: {
+          gemini: { apiKey: config.geminiApiKey || '', enabled: config.geminiEnabled },
+          grok: { apiKey: config.grokApiKey || '', enabled: config.grokEnabled },
+        },
         aiAnalysisEnabled: config.aiAnalysisEnabled,
         predictionThreshold: config.predictionThreshold,
+        agentPrompts: {
+          analyst: config.analystPrompt || '',
+          scraper: config.scraperPrompt || '',
+        }
       };
     } catch (error) {
       console.error("Failed to fetch config from DB:", error);
@@ -69,12 +81,14 @@ class ConfigService {
         footballApi3Enabled: merged.footballApis.api3.enabled,
         footballApiKey4: merged.footballApis.api4.apiKey,
         footballApi4Enabled: merged.footballApis.api4.enabled,
-        geminiApiKey: merged.gemini.apiKey,
-        geminiEnabled: merged.gemini.enabled,
-        grokApiKey: merged.grok.apiKey,
-        grokEnabled: merged.grok.enabled,
+        geminiApiKey: merged.aiProviders.gemini.apiKey,
+        geminiEnabled: merged.aiProviders.gemini.enabled,
+        grokApiKey: merged.aiProviders.grok.apiKey,
+        grokEnabled: merged.aiProviders.grok.enabled,
         aiAnalysisEnabled: merged.aiAnalysisEnabled,
         predictionThreshold: merged.predictionThreshold,
+        analystPrompt: merged.agentPrompts.analyst,
+        scraperPrompt: merged.agentPrompts.scraper,
       },
       create: {
         id: 'default',
@@ -87,12 +101,14 @@ class ConfigService {
         footballApi3Enabled: merged.footballApis.api3.enabled,
         footballApiKey4: merged.footballApis.api4.apiKey,
         footballApi4Enabled: merged.footballApis.api4.enabled,
-        geminiApiKey: merged.gemini.apiKey,
-        geminiEnabled: merged.gemini.enabled,
-        grokApiKey: merged.grok.apiKey,
-        grokEnabled: merged.grok.enabled,
+        geminiApiKey: merged.aiProviders.gemini.apiKey,
+        geminiEnabled: merged.aiProviders.gemini.enabled,
+        grokApiKey: merged.aiProviders.grok.apiKey,
+        grokEnabled: merged.aiProviders.grok.enabled,
         aiAnalysisEnabled: merged.aiAnalysisEnabled,
         predictionThreshold: merged.predictionThreshold,
+        analystPrompt: merged.agentPrompts.analyst,
+        scraperPrompt: merged.agentPrompts.scraper,
       },
     });
   }
@@ -106,10 +122,16 @@ class ConfigService {
         api3: { apiKey: '', enabled: false },
         api4: { apiKey: '', enabled: false },
       },
-      gemini: { apiKey: '', enabled: true },
-      grok: { apiKey: '', enabled: false },
+      aiProviders: {
+        gemini: { apiKey: '', enabled: true },
+        grok: { apiKey: '', enabled: false },
+      },
       aiAnalysisEnabled: true,
       predictionThreshold: 75,
+      agentPrompts: {
+        analyst: 'You are a professional football betting analyst...',
+        scraper: 'Filter for today matches only...'
+      }
     };
   }
 }
