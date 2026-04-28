@@ -1,476 +1,226 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Settings, 
-  Shield, 
-  Activity, 
-  Globe, 
-  Terminal, 
-  CheckCircle, 
-  AlertCircle, 
-  RefreshCcw,
-  Plus,
-  Trash2,
-  Lock,
-  Cpu,
-  Database,
-  Cloud,
-  ChevronRight,
-  Eye,
-  EyeOff,
-  Zap,
-  LayoutGrid,
-  History,
-  Workflow
+import {
+  Cpu, Terminal, Globe, Lock, Database, Shield,
+  CheckCircle, RefreshCcw, Plus, Trash2, Eye, EyeOff,
+  Zap, Activity, History, Server, ChevronRight, AlertTriangle
 } from 'lucide-react';
 
-export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState('agents');
-  const [isSaving, setIsSaving] = useState(false);
-  const [config, setConfig] = useState<any>(null);
-  const [history, setHistory] = useState<any[]>([]);
-  const [health, setHealth] = useState<any>(null);
-  const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
+const tabs = [
+  { id: 'agents',   label: 'Neural Agents',   icon: Cpu },
+  { id: 'prompts',  label: 'Prompt Engine',   icon: Terminal },
+  { id: 'scraping', label: 'Crawl Routes',    icon: Globe },
+  { id: 'history',  label: 'Prediction Logs', icon: History },
+  { id: 'security', label: 'Vault',           icon: Lock },
+];
 
-  const fetchData = async () => {
+const fadeIn = {
+  hidden: { opacity: 0, y: 12 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.3 } },
+};
+
+export default function AdminPage() {
+  const [active, setActive]   = useState('agents');
+  const [config, setConfig]   = useState<any>(null);
+  const [history, setHistory] = useState<any[]>([]);
+  const [health, setHealth]   = useState<any>(null);
+  const [saving, setSaving]   = useState(false);
+  const [saved, setSaved]     = useState(false);
+  const [showKey, setShowKey] = useState<Record<string, boolean>>({});
+
+  const load = useCallback(async () => {
     try {
-      const [configRes, historyRes, healthRes] = await Promise.all([
+      const [cr, hr, hr2] = await Promise.all([
         fetch('/api/admin/config'),
         fetch('/api/admin/history'),
-        fetch('/api/admin/health')
+        fetch('/api/admin/health'),
       ]);
-      
-      const [configData, historyData, healthData] = await Promise.all([
-        configRes.json(),
-        historyRes.json(),
-        healthRes.json()
-      ]);
-
-      setConfig(configData);
-      setHistory(historyData);
-      setHealth(healthData);
-    } catch (err) {
-      console.error("Error fetching admin data:", err);
+      const [cfg, hist, hlth] = await Promise.all([cr.json(), hr.json(), hr2.json()]);
+      setConfig(cfg);
+      setHistory(Array.isArray(hist) ? hist : []);
+      setHealth(hlth);
+    } catch (e) {
+      console.error(e);
     }
-  };
-
-  useEffect(() => {
-    fetchData();
-    const interval = setInterval(() => {
-      fetch('/api/admin/health')
-        .then(res => res.json())
-        .then(data => setHealth(data));
-    }, 30000);
-    return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    load();
+    const t = setInterval(() => {
+      fetch('/api/admin/health').then(r => r.json()).then(setHealth);
+    }, 30_000);
+    return () => clearInterval(t);
+  }, [load]);
+
   const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      await fetch('/api/admin/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config)
-      });
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setTimeout(() => setIsSaving(false), 1000);
-    }
+    setSaving(true);
+    await fetch('/api/admin/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config),
+    });
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
   };
 
-  const toggleKey = (id: string) => {
-    setShowKeys(prev => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  const agents = [
-    { name: 'Scraper Agent', status: health?.status === 'online' ? 'Active' : 'Offline', load: '12%', color: 'text-blue-400', icon: Globe },
-    { name: 'Analyst Agent', status: health?.status === 'online' ? 'Active' : 'Offline', load: '45%', color: 'text-purple-400', icon: Terminal },
-    { name: 'Validator Agent', status: 'Idle', load: '0%', color: 'text-emerald-400', icon: CheckCircle },
-    { name: 'Health Agent', status: 'Active', load: '5%', color: 'text-orange-400', icon: Shield },
-  ];
-
+  /* ── Loading ── */
   if (!config) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[80vh] gap-6">
-        <motion.div 
-          animate={{ scale: [1, 1.1, 1] }}
-          transition={{ duration: 2, repeat: Infinity }}
-          className="w-16 h-16 premium-gradient rounded-3xl flex items-center justify-center shadow-2xl shadow-primary/40"
-        >
-          <Workflow className="text-white" size={32} />
-        </motion.div>
-        <p className="text-muted-foreground font-black tracking-[0.4em] text-[10px] uppercase">Authenticating Core...</p>
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-64px)] gap-4">
+        <div className="relative w-12 h-12">
+          <div className="absolute inset-0 rounded-full border-2 border-border" />
+          <div className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        </div>
+        <p className="text-sm text-muted-foreground">Loading admin panel…</p>
       </div>
     );
   }
 
-  return (
-    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 pb-32 pt-12">
-      <div className="flex flex-col lg:flex-row gap-12">
-        {/* Navigation Sidebar */}
-        <aside className="lg:w-80 shrink-0">
-          <div className="glass-card !p-8 sticky top-32">
-            <div className="mb-12">
-              <div className="flex items-center gap-3 mb-2">
-                <Zap className="text-primary fill-primary" size={20} />
-                <h1 className="text-2xl font-black font-outfit tracking-tighter">ADMIN<span className="text-primary">OS</span></h1>
-              </div>
-              <p className="text-[10px] text-muted-foreground font-black uppercase tracking-[0.3em]">Neural Command v4.2</p>
-            </div>
+  const agents = [
+    { name: 'Scraper Agent',   icon: Globe,        status: health?.status === 'online' ? 'online' : 'offline', load: '12%', color: 'text-cyan-500',    bg: 'bg-cyan-500/10' },
+    { name: 'Analyst Agent',   icon: Terminal,      status: health?.status === 'online' ? 'online' : 'offline', load: '45%', color: 'text-violet-500',  bg: 'bg-violet-500/10' },
+    { name: 'Validator Agent', icon: CheckCircle,   status: 'idle',                                              load: '0%',  color: 'text-muted-foreground', bg: 'bg-secondary' },
+    { name: 'Health Agent',    icon: Shield,        status: 'online',                                            load: '5%',  color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+  ];
 
-            <nav className="space-y-2">
-              {[
-                { id: 'agents', label: 'Neural Agents', icon: Cpu },
-                { id: 'config', label: 'Prompt Engine', icon: Terminal },
-                { id: 'scraping', label: 'Crawl Routes', icon: Globe },
-                { id: 'history', label: 'Prediction Logs', icon: Database },
-                { id: 'security', label: 'Vault Access', icon: Lock },
-              ].map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center justify-between px-6 py-5 rounded-[1.5rem] text-xs font-black transition-all group ${
-                    activeTab === item.id 
-                      ? 'bg-primary text-white shadow-xl shadow-primary/20' 
-                      : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
-                  }`}
-                >
-                  <div className="flex items-center gap-4">
-                    <item.icon size={20} className={activeTab === item.id ? 'text-white' : 'group-hover:text-primary transition-colors'} />
-                    <span className="uppercase tracking-widest">{item.label}</span>
-                  </div>
-                  <ChevronRight size={16} className={activeTab === item.id ? 'opacity-100' : 'opacity-0'} />
-                </button>
-              ))}
-            </nav>
-            
-            <div className="mt-12 pt-12 border-t border-white/5">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center">
-                  <LayoutGrid className="text-muted-foreground" size={24} />
-                </div>
-                <div>
-                  <p className="text-xs font-black uppercase tracking-widest">System Load</p>
-                  <p className="text-xl font-black font-outfit">1.25 TFLOPS</p>
-                </div>
-              </div>
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 pb-24">
+
+      {/* ── Page header ───────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="badge badge-purple gap-2">
+              <span className="dot-online" />
+              Admin OS v4.2
+            </span>
+          </div>
+          <h1 className="font-display text-3xl font-black text-foreground">Control Center</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Manage AI agents, prompts, scrapers, and system credentials.
+          </p>
+        </div>
+
+        {active !== 'history' && (
+          <button onClick={handleSave} disabled={saving} className="btn-primary shrink-0">
+            {saving
+              ? <RefreshCcw size={15} className="animate-spin" />
+              : saved
+              ? <CheckCircle size={15} />
+              : <Zap size={15} />}
+            {saving ? 'Saving…' : saved ? 'Saved!' : 'Save Changes'}
+          </button>
+        )}
+      </div>
+
+      {/* ── Layout ─────────────────────────────────────────────── */}
+      <div className="flex flex-col lg:flex-row gap-6">
+
+        {/* Sidebar */}
+        <aside className="lg:w-56 shrink-0">
+          <nav className="card-base p-2 flex flex-row lg:flex-col gap-1 overflow-x-auto lg:overflow-x-visible">
+            {tabs.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                onClick={() => setActive(id)}
+                className={active === id ? 'sidebar-item-active' : 'sidebar-item'}
+              >
+                <Icon size={16} className="shrink-0" />
+                <span className="truncate">{label}</span>
+              </button>
+            ))}
+          </nav>
+
+          {/* System load card (desktop only) */}
+          <div className="hidden lg:block card-base p-4 mt-4 space-y-3">
+            <p className="section-label">System Status</p>
+            <div className="flex items-center gap-2 text-sm">
+              <span className={health?.status === 'online' ? 'dot-online' : 'dot-offline'} />
+              <span className="font-medium text-foreground capitalize">{health?.status || '…'}</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <Server size={14} className="text-muted-foreground" />
+              <span className="text-muted-foreground">{health?.dbStatus === 'online' ? 'DB Connected' : 'DB Offline'}</span>
             </div>
           </div>
         </aside>
 
-        {/* Main Interface */}
-        <main className="flex-1">
-          <header className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
-            <div>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                <span className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">Authenticated Management</span>
-              </div>
-              <h2 className="text-5xl font-black tracking-tighter capitalize font-outfit leading-none">{activeTab.replace('-', ' ')}</h2>
-              <p className="text-muted-foreground mt-4 font-medium max-w-md">Real-time control over the neural betting infrastructure and agent parameters.</p>
-            </div>
-            
-            {activeTab !== 'history' && (
-              <button 
-                onClick={handleSave}
-                disabled={isSaving}
-                className="px-10 py-5 bg-primary text-white hover:scale-105 active:scale-95 rounded-[2rem] font-black text-xs uppercase tracking-widest transition-all flex items-center gap-3 shadow-[0_20px_40px_-10px_rgba(139,92,246,0.4)] disabled:opacity-50"
-              >
-                {isSaving ? <RefreshCcw className="animate-spin" size={18} /> : <RefreshCcw size={18} />}
-                Sync Configuration
-              </button>
-            )}
-          </header>
-
+        {/* Main content */}
+        <main className="flex-1 min-w-0">
           <AnimatePresence mode="wait">
-            {activeTab === 'agents' && (
-              <motion.div
-                key="agents"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="space-y-12"
-              >
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {agents.map((agent, i) => (
-                    <div key={agent.name} className="glass-card flex items-center justify-between group border-white/10 hover:border-primary/40">
-                      <div className="flex items-center gap-8">
-                        <div className={`p-6 rounded-[2rem] bg-white/5 ${agent.color} group-hover:scale-110 transition-transform duration-500`}>
-                          <agent.icon size={32} />
-                        </div>
-                        <div>
-                          <h3 className="text-2xl font-black font-outfit tracking-tighter">{agent.name}</h3>
-                          <div className="flex items-center gap-3 mt-2">
-                            <div className={`w-2 h-2 rounded-full ${agent.status === 'Active' ? 'bg-emerald-500 animate-pulse' : 'bg-muted'}`} />
-                            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{agent.status}</span>
-                          </div>
+
+            {/* ── Agents ───────────────────────────────────────── */}
+            {active === 'agents' && (
+              <motion.div key="agents" variants={fadeIn} initial="hidden" animate="show" exit="hidden" className="space-y-6">
+
+                {/* Agent grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {agents.map(({ name, icon: Icon, status, load, color, bg }) => (
+                    <div key={name} className="card-base p-5 flex items-center gap-4">
+                      <div className={`p-3 rounded-lg shrink-0 ${bg} ${color}`}>
+                        <Icon size={22} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-foreground text-sm truncate">{name}</p>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <span className={status === 'online' ? 'dot-online' : status === 'idle' ? 'dot-idle' : 'dot-offline'} />
+                          <span className="text-xs text-muted-foreground capitalize">{status}</span>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-[10px] font-black text-muted-foreground mb-1 uppercase tracking-widest">Network Load</p>
-                        <p className="text-3xl font-black font-outfit">{agent.load}</p>
+                      <div className="text-right shrink-0">
+                        <p className="section-label mb-0.5">Load</p>
+                        <p className="font-display font-black text-lg text-foreground">{load}</p>
                       </div>
                     </div>
                   ))}
                 </div>
 
-                <div className="glass-card !p-12">
-                  <div className="flex items-center gap-4 mb-12">
-                    <div className="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center">
-                      <Activity className="text-primary" size={24} />
-                    </div>
-                    <h3 className="text-3xl font-black font-outfit tracking-tighter">Neural Gateway Status</h3>
+                {/* Gateway status */}
+                <div className="card-base overflow-hidden">
+                  <div className="px-6 py-4 border-b border-border flex items-center gap-2">
+                    <Activity size={16} className="text-primary" />
+                    <h3 className="font-semibold text-foreground text-sm">Neural Gateways</h3>
                   </div>
-                  
-                  <div className="space-y-8">
-                    <div className="flex items-center justify-between p-8 rounded-[2.5rem] bg-white/5 border border-white/5 group hover:border-emerald-500/30 transition-all">
-                      <div className="flex items-center gap-6">
-                        <div className={`w-4 h-4 rounded-full ${health?.dbStatus === 'online' ? 'bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.5)]' : 'bg-red-500'}`} />
+                  <div className="divide-y divide-border">
+                    {/* DB row */}
+                    <div className="px-6 py-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Database size={18} className="text-muted-foreground" />
                         <div>
-                          <p className="font-black text-xl font-outfit tracking-tight">Neon PostgreSQL Cluster</p>
-                          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mt-1">Status: {health?.dbStatus || 'Checking...'}</p>
+                          <p className="text-sm font-medium text-foreground">Neon PostgreSQL</p>
+                          <p className="text-xs text-muted-foreground">Primary cluster</p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-xs font-black text-emerald-500 uppercase tracking-widest">Connected</p>
-                      </div>
+                      <span className={health?.dbStatus === 'online' ? 'badge badge-green' : 'badge badge-red'}>
+                        {health?.dbStatus || 'checking…'}
+                      </span>
                     </div>
-
-                    {Object.entries(config.aiProviders).map(([id, provider]: [string, any]) => (
-                      <div key={id} className="flex items-center justify-between p-8 rounded-[2.5rem] bg-white/5 border border-white/5 group hover:border-primary/30 transition-all">
-                        <div className="flex items-center gap-6">
-                          <div className={`w-4 h-4 rounded-full ${provider.enabled ? 'bg-primary shadow-[0_0_15px_rgba(139,92,246,0.5)]' : 'bg-muted'}`} />
+                    {/* AI providers */}
+                    {config?.aiProviders && Object.entries(config.aiProviders).map(([id, p]: [string, any]) => (
+                      <div key={id} className="px-6 py-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Zap size={18} className="text-muted-foreground" />
                           <div>
-                            <p className="font-black text-xl font-outfit tracking-tight capitalize">{id} Neural Net</p>
-                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mt-1">API Integration: {provider.status === 'online' ? 'Verified' : 'Pending'}</p>
+                            <p className="text-sm font-medium text-foreground capitalize">{id}</p>
+                            <p className="text-xs text-muted-foreground">AI neural net</p>
                           </div>
                         </div>
-                        <button 
-                          onClick={() => {
-                            const updated = { ...config.aiProviders };
-                            updated[id].enabled = !updated[id].enabled;
-                            setConfig({ ...config, aiProviders: updated });
-                          }}
-                          className={`px-8 py-3 rounded-2xl text-[10px] font-black tracking-widest transition-all ${
-                            provider.enabled ? 'bg-primary text-white shadow-xl shadow-primary/20' : 'bg-white/5 text-muted-foreground'
-                          }`}
-                        >
-                          {provider.enabled ? 'ACTIVE' : 'INACTIVE'}
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {activeTab === 'config' && (
-              <motion.div
-                key="config"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="space-y-12"
-              >
-                <div className="glass-card !p-12">
-                  <div className="flex items-center gap-4 mb-12">
-                    <div className="w-12 h-12 rounded-2xl bg-purple-500/20 flex items-center justify-center">
-                      <Terminal className="text-purple-400" size={24} />
-                    </div>
-                    <h3 className="text-3xl font-black font-outfit tracking-tighter">Behavior Patterns</h3>
-                  </div>
-                  
-                  <div className="space-y-12">
-                    <div className="group">
-                      <div className="flex items-center justify-between mb-6">
-                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">Analyst Reasoning Logic</label>
-                        <span className="text-[9px] bg-primary/10 text-primary px-3 py-1 rounded-full font-black uppercase tracking-widest border border-primary/20">Optimized</span>
-                      </div>
-                      <textarea 
-                        className="w-full bg-white/5 border border-white/10 rounded-[2rem] p-8 text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none min-h-[250px] leading-relaxed resize-none"
-                        value={config.agentPrompts.analyst}
-                        onChange={(e) => setConfig({
-                          ...config,
-                          agentPrompts: { ...config.agentPrompts, analyst: e.target.value }
-                        })}
-                      />
-                    </div>
-                    
-                    <div className="group">
-                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] mb-6 block">Scraper Heuristics</label>
-                      <textarea 
-                        className="w-full bg-white/5 border border-white/10 rounded-[2rem] p-8 text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none min-h-[150px] leading-relaxed resize-none"
-                        value={config.agentPrompts.scraper}
-                        onChange={(e) => setConfig({
-                          ...config,
-                          agentPrompts: { ...config.agentPrompts, scraper: e.target.value }
-                        })}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {activeTab === 'scraping' && (
-              <motion.div
-                key="scraping"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="space-y-12"
-              >
-                <div className="glass-card !p-12">
-                  <div className="flex items-center justify-between mb-16">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-blue-500/20 flex items-center justify-center">
-                        <Globe className="text-blue-400" size={24} />
-                      </div>
-                      <h3 className="text-3xl font-black font-outfit tracking-tighter">Crawl Targets</h3>
-                    </div>
-                    <button 
-                      onClick={() => {
-                        const url = prompt('Enter scraping URL:');
-                        if (url) setConfig({ ...config, scrapingUrls: [...config.scrapingUrls, url] });
-                      }}
-                      className="flex items-center gap-3 px-8 py-4 bg-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-primary/20"
-                    >
-                      <Plus size={18} />
-                      Add Target
-                    </button>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    {config.scrapingUrls.map((url: string, i: number) => (
-                      <div key={i} className="flex items-center justify-between p-8 rounded-[2rem] bg-white/5 border border-white/5 group hover:border-primary/20 transition-all">
-                        <div className="flex items-center gap-6">
-                          <div className="p-4 rounded-2xl bg-blue-400/10 text-blue-400">
-                            <Globe size={22} />
-                          </div>
-                          <span className="text-sm font-mono font-bold tracking-tight">{url}</span>
-                        </div>
-                        <button 
-                          onClick={() => setConfig({
-                            ...config,
-                            scrapingUrls: config.scrapingUrls.filter((_: any, idx: number) => idx !== i)
-                          })}
-                          className="p-4 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-2xl transition-all"
-                        >
-                          <Trash2 size={20} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {activeTab === 'history' && (
-              <motion.div
-                key="history"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="space-y-12"
-              >
-                <div className="glass-card !p-12">
-                  <div className="flex items-center justify-between mb-16">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 flex items-center justify-center">
-                        <History className="text-emerald-400" size={24} />
-                      </div>
-                      <h3 className="text-3xl font-black font-outfit tracking-tighter">Neural Logs</h3>
-                    </div>
-                    <button 
-                      onClick={() => fetchData()}
-                      className="p-4 rounded-2xl bg-white/5 hover:bg-white/10 transition-all"
-                    >
-                      <RefreshCcw size={20} />
-                    </button>
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="border-b border-white/5">
-                          <th className="pb-8 text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">Timestamp</th>
-                          <th className="pb-8 text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">Target</th>
-                          <th className="pb-8 text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">Resultant</th>
-                          <th className="pb-8 text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">Confidence</th>
-                          <th className="pb-8 text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/5">
-                        {history.map((slip) => (
-                          <tr key={slip.id} className="group hover:bg-white/[0.02] transition-colors">
-                            <td className="py-8 font-mono text-xs font-bold text-muted-foreground">{new Date(slip.createdAt).toLocaleString()}</td>
-                            <td className="py-8">
-                              <span className="text-lg font-black font-outfit tracking-tight">{slip.targetOdds}X</span>
-                            </td>
-                            <td className="py-8">
-                              <span className="px-4 py-2 rounded-xl bg-primary/10 text-primary text-xs font-black tracking-tight border border-primary/20">{slip.totalOdds} ODDS</span>
-                            </td>
-                            <td className="py-8">
-                              <div className="flex items-center gap-4">
-                                <div className="w-32 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                  <div className="h-full bg-primary" style={{ width: `${slip.confidence}%` }} />
-                                </div>
-                                <span className="text-xs font-black">{slip.confidence}%</span>
-                              </div>
-                            </td>
-                            <td className="py-8 text-right">
-                              <button className="p-4 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-2xl transition-all">
-                                <Eye size={20} />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {activeTab === 'security' && (
-              <motion.div
-                key="security"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="space-y-12"
-              >
-                <div className="glass-card !p-12">
-                  <div className="flex items-center gap-4 mb-16">
-                    <div className="w-12 h-12 rounded-2xl bg-orange-500/20 flex items-center justify-center">
-                      <Lock className="text-orange-400" size={24} />
-                    </div>
-                    <h3 className="text-3xl font-black font-outfit tracking-tighter">Vault Access</h3>
-                  </div>
-                  
-                  <div className="space-y-12">
-                    {[
-                      { id: 'football', label: 'Market API Key', value: config.footballApiKey },
-                      { id: 'gemini', label: 'Neural Engine Key', value: config.aiProviders.gemini.apiKey },
-                      { id: 'database', label: 'Postgres Connection', value: 'CLUSTER_SECURED_ENDPOINT' },
-                    ].map((key) => (
-                      <div key={key.id}>
-                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] mb-6 block">{key.label}</label>
-                        <div className="relative group/vault">
-                          <input 
-                            type={showKeys[key.id] ? 'text' : 'password'} 
-                            readOnly
-                            className="w-full bg-white/5 border border-white/10 rounded-[2rem] p-8 text-sm font-mono tracking-tight group-hover/vault:border-primary/30 transition-all pr-24"
-                            value={key.value || '••••••••••••••••••••••••••••'}
-                          />
-                          <button 
-                            onClick={() => toggleKey(key.id)}
-                            className="absolute right-6 top-1/2 -translate-y-1/2 p-4 text-muted-foreground hover:text-primary transition-all"
+                        <div className="flex items-center gap-3">
+                          <span className={p.enabled ? 'badge badge-purple' : 'badge badge-gray'}>
+                            {p.enabled ? 'Active' : 'Inactive'}
+                          </span>
+                          <button
+                            onClick={() => {
+                              const u = { ...config.aiProviders };
+                              u[id] = { ...u[id], enabled: !u[id].enabled };
+                              setConfig({ ...config, aiProviders: u });
+                            }}
+                            className="btn-ghost text-xs px-3 py-1"
                           >
-                            {showKeys[key.id] ? <EyeOff size={22} /> : <Eye size={22} />}
+                            Toggle
                           </button>
                         </div>
                       </div>
@@ -479,6 +229,197 @@ export default function AdminDashboard() {
                 </div>
               </motion.div>
             )}
+
+            {/* ── Prompts ──────────────────────────────────────── */}
+            {active === 'prompts' && (
+              <motion.div key="prompts" variants={fadeIn} initial="hidden" animate="show" exit="hidden" className="space-y-6">
+                <div className="card-base overflow-hidden">
+                  <div className="px-6 py-4 border-b border-border">
+                    <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
+                      <Terminal size={16} className="text-primary" />
+                      Agent Behavior Patterns
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-1">Configure how each agent reasons and responds.</p>
+                  </div>
+                  <div className="p-6 space-y-6">
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="section-label">Analyst Reasoning</label>
+                        <span className="badge badge-purple">Gemini Optimised</span>
+                      </div>
+                      <textarea
+                        rows={7}
+                        className="form-textarea"
+                        value={config?.agentPrompts?.analyst || ''}
+                        onChange={e => setConfig({ ...config, agentPrompts: { ...config.agentPrompts, analyst: e.target.value } })}
+                        placeholder="Define how the analyst agent reasons about match outcomes…"
+                      />
+                    </div>
+                    <div>
+                      <label className="section-label block mb-2">Scraper Heuristics</label>
+                      <textarea
+                        rows={4}
+                        className="form-textarea"
+                        value={config?.agentPrompts?.scraper || ''}
+                        onChange={e => setConfig({ ...config, agentPrompts: { ...config.agentPrompts, scraper: e.target.value } })}
+                        placeholder="Define how the scraper agent filters and normalises data…"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* ── Scraping ─────────────────────────────────────── */}
+            {active === 'scraping' && (
+              <motion.div key="scraping" variants={fadeIn} initial="hidden" animate="show" exit="hidden" className="space-y-6">
+                <div className="card-base overflow-hidden">
+                  <div className="px-6 py-4 border-b border-border flex items-center justify-between">
+                    <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
+                      <Globe size={16} className="text-cyan-500" />
+                      Crawl Targets
+                    </h3>
+                    <button
+                      className="btn-primary text-xs px-3 py-1.5"
+                      onClick={() => {
+                        const url = prompt('Enter scraping URL:');
+                        if (url) setConfig({ ...config, scrapingUrls: [...(config.scrapingUrls || []), url] });
+                      }}
+                    >
+                      <Plus size={14} /> Add
+                    </button>
+                  </div>
+
+                  {config?.scrapingUrls?.length > 0 ? (
+                    <div className="divide-y divide-border">
+                      {config.scrapingUrls.map((url: string, i: number) => (
+                        <div key={i} className="px-6 py-4 flex items-center gap-4">
+                          <Globe size={16} className="text-muted-foreground shrink-0" />
+                          <p className="text-sm text-foreground font-mono truncate flex-1">{url}</p>
+                          <button
+                            className="btn-icon shrink-0 hover:text-destructive hover:border-destructive/30"
+                            onClick={() => setConfig({ ...config, scrapingUrls: config.scrapingUrls.filter((_: any, j: number) => j !== i) })}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="px-6 py-10 text-center text-muted-foreground text-sm">
+                      No crawl targets configured. Click "Add" to get started.
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
+            {/* ── History ──────────────────────────────────────── */}
+            {active === 'history' && (
+              <motion.div key="history" variants={fadeIn} initial="hidden" animate="show" exit="hidden" className="space-y-6">
+                <div className="card-base overflow-hidden">
+                  <div className="px-6 py-4 border-b border-border flex items-center justify-between">
+                    <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
+                      <History size={16} className="text-emerald-500" />
+                      Prediction Logs
+                    </h3>
+                    <button className="btn-icon" onClick={load}>
+                      <RefreshCcw size={14} />
+                    </button>
+                  </div>
+
+                  {history.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="data-table">
+                        <thead>
+                          <tr>
+                            <th>Timestamp</th>
+                            <th>Target</th>
+                            <th>Actual Odds</th>
+                            <th>Confidence</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {history.map(slip => (
+                            <tr key={slip.id}>
+                              <td className="text-xs font-mono text-muted-foreground">
+                                {new Date(slip.createdAt).toLocaleString()}
+                              </td>
+                              <td>
+                                <span className="badge badge-purple">{slip.targetOdds}×</span>
+                              </td>
+                              <td>
+                                <span className="font-display font-bold text-foreground">{slip.totalOdds}</span>
+                              </td>
+                              <td>
+                                <div className="flex items-center gap-3">
+                                  <div className="progress-bar w-24">
+                                    <div className="progress-fill" style={{ width: `${slip.confidence}%` }} />
+                                  </div>
+                                  <span className="text-sm font-semibold text-foreground">{slip.confidence}%</span>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="px-6 py-10 text-center text-muted-foreground text-sm">
+                      No prediction history yet. Generate slips from the dashboard first.
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
+            {/* ── Security ─────────────────────────────────────── */}
+            {active === 'security' && (
+              <motion.div key="security" variants={fadeIn} initial="hidden" animate="show" exit="hidden" className="space-y-6">
+
+                <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                  <AlertTriangle size={16} className="text-amber-500 shrink-0 mt-0.5" />
+                  <p className="text-sm text-amber-600 dark:text-amber-400">
+                    Credentials are encrypted at rest and never logged to client-side output.
+                  </p>
+                </div>
+
+                <div className="card-base overflow-hidden">
+                  <div className="px-6 py-4 border-b border-border">
+                    <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
+                      <Lock size={16} className="text-primary" />
+                      Credential Vault
+                    </h3>
+                  </div>
+                  <div className="p-6 space-y-5">
+                    {[
+                      { id: 'football', label: 'Football-API Token',       value: config?.footballApiKey },
+                      { id: 'gemini',   label: 'Gemini Neural Key',         value: config?.aiProviders?.gemini?.apiKey },
+                      { id: 'db',       label: 'Neon DB Connection String', value: 'postgres://***@***.neon.tech/neondb' },
+                    ].map(({ id, label, value }) => (
+                      <div key={id}>
+                        <label className="section-label block mb-2">{label}</label>
+                        <div className="relative">
+                          <input
+                            type={showKey[id] ? 'text' : 'password'}
+                            readOnly
+                            value={value || '••••••••••••••••••••••••'}
+                            className="form-input pr-12"
+                          />
+                          <button
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                            onClick={() => setShowKey(prev => ({ ...prev, [id]: !prev[id] }))}
+                          >
+                            {showKey[id] ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
           </AnimatePresence>
         </main>
       </div>
