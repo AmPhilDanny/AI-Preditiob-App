@@ -7,18 +7,20 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma generate"
+    "postinstall": "npx prisma generate"
   },
   "dependencies": {
     "next": "15.0.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",
+    "@prisma/client": "5.22.0",
     "lucide-react": "^0.453.0",
     "clsx": "^2.1.1",
     "tailwind-merge": "^2.5.4",
     "framer-motion": "^11.11.9"
   },
   "devDependencies": {
+    "prisma": "5.22.0",
     "typescript": "^5",
     "@types/node": "^20",
     "@types/react": "^18",
