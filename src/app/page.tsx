@@ -6,7 +6,7 @@ import {
   RefreshCcw, Zap, Brain, Target, Activity, Shield,
   AlertTriangle, ArrowRight, ChevronRight, TrendingUp,
   Globe, CheckCircle, Play, Loader2, Send, MessageSquare,
-  Sparkles, Check, Database
+  Sparkles, Check, Database, Terminal
 } from 'lucide-react';
 
 const fadeUp = {
