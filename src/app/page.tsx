@@ -325,14 +325,21 @@ export default function HomePage() {
 
               <h4 className="text-xs font-bold text-foreground mb-1">{agent.name}</h4>
               
-              <div className="flex items-center gap-1.5">
-                <span className={
-                  isRunning ? 'dot-busy' :
-                  state.status === 'online' || isSuccess ? 'dot-online' : 'dot-idle'
-                } />
-                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
-                  {isRunning ? 'Working' : isSuccess ? 'Saved' : state.status}
-                </span>
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-1.5">
+                  <span className={
+                    isRunning ? 'dot-busy' :
+                    state.status === 'online' || isSuccess ? 'dot-online' : 'dot-idle'
+                  } />
+                  <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+                    {isRunning ? 'Working' : isSuccess ? 'Saved' : state.status}
+                  </span>
+                </div>
+                {state.lastRun && (
+                  <p className="text-[8px] text-muted-foreground/60 font-mono">
+                    {formatToWAT(state.lastRun)}
+                  </p>
+                )}
               </div>
 
               {/* Progress indicator */}
