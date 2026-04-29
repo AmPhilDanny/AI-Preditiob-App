@@ -11,6 +11,7 @@ export interface SystemConfig {
   aiProviders: {
     gemini: { apiKey: string; enabled: boolean };
     grok: { apiKey: string; enabled: boolean };
+    mistral: { apiKey: string; enabled: boolean };
   };
   aiAnalysisEnabled: boolean;
   predictionThreshold: number;
@@ -51,6 +52,7 @@ class ConfigService {
         aiProviders: {
           gemini: { apiKey: config.geminiApiKey || '', enabled: config.geminiEnabled },
           grok: { apiKey: config.grokApiKey || '', enabled: config.grokEnabled },
+          mistral: { apiKey: config.mistralApiKey || '', enabled: config.mistralEnabled },
         },
         aiAnalysisEnabled: config.aiAnalysisEnabled,
         predictionThreshold: config.predictionThreshold,
@@ -85,6 +87,8 @@ class ConfigService {
         geminiEnabled: merged.aiProviders.gemini.enabled,
         grokApiKey: merged.aiProviders.grok.apiKey,
         grokEnabled: merged.aiProviders.grok.enabled,
+        mistralApiKey: merged.aiProviders.mistral?.apiKey || '',
+        mistralEnabled: merged.aiProviders.mistral?.enabled || false,
         aiAnalysisEnabled: merged.aiAnalysisEnabled,
         predictionThreshold: merged.predictionThreshold,
         analystPrompt: merged.agentPrompts.analyst,
@@ -105,6 +109,8 @@ class ConfigService {
         geminiEnabled: merged.aiProviders.gemini.enabled,
         grokApiKey: merged.aiProviders.grok.apiKey,
         grokEnabled: merged.aiProviders.grok.enabled,
+        mistralApiKey: merged.aiProviders.mistral?.apiKey || '',
+        mistralEnabled: merged.aiProviders.mistral?.enabled || false,
         aiAnalysisEnabled: merged.aiAnalysisEnabled,
         predictionThreshold: merged.predictionThreshold,
         analystPrompt: merged.agentPrompts.analyst,
@@ -125,6 +131,7 @@ class ConfigService {
       aiProviders: {
         gemini: { apiKey: '', enabled: true },
         grok: { apiKey: '', enabled: false },
+        mistral: { apiKey: '', enabled: false },
       },
       aiAnalysisEnabled: true,
       predictionThreshold: 75,

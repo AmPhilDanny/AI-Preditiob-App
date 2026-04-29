@@ -14,6 +14,7 @@ const TABS = [
   { id: 'agents',   label: 'Neural Agents',   icon: Cpu },
   { id: 'prompts',  label: 'Prompt Engine',   icon: Terminal },
   { id: 'scraping', label: 'Crawl Routes',    icon: Globe },
+  { id: 'data',     label: 'Data Viewer',     icon: Database },
   { id: 'history',  label: 'Prediction Logs', icon: History },
   { id: 'security', label: 'Vault',           icon: Lock },
 ];
@@ -37,6 +38,7 @@ export default function AdminPage() {
   const [config,   setConfig]   = useState<any>(null);
   const [history,  setHistory]  = useState<any[]>([]);
   const [health,   setHealth]   = useState<any>(null);
+  const [scrapedData, setScrapedData] = useState<any[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [saving,   setSaving]   = useState(false);
   const [saved,    setSaved]    = useState(false);
@@ -68,6 +70,21 @@ export default function AdminPage() {
     }, 30_000);
     return () => clearInterval(t);
   }, [load]);
+
+  /* ── Load Scraped Data ─────────────────────────────────────── */
+  const loadScrapedData = async () => {
+    try {
+      const res = await fetch('/api/admin/scraped-data');
+      const json = await res.json();
+      if (json.success) setScrapedData(json.data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    if (active === 'data') loadScrapedData();
+  }, [active]);
 
   /* ── Save config ─────────────────────────────────────────── */
   const handleSave = async () => {
@@ -119,6 +136,15 @@ export default function AdminPage() {
   /* ── Update Slip Status ──────────────────────────────────── */
   const updateSlipStatus = async (id: string, status: string) => {
     setHistory(prev => prev.map(s => s.id === id ? { ...s, status } : s));
+    try {
+      await fetch('/api/admin/history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status }),
+      });
+    } catch (e) {
+      console.error('Failed to update status', e);
+    }
   };
 
   /* ── Loading state ───────────────────────────────────────── */
@@ -309,13 +335,12 @@ export default function AdminPage() {
                               <button
                                 onClick={() => {
                                   const u = { ...config.footballApis };
-                                  Object.keys(u).forEach(key => u[key].enabled = false);
-                                  u[provider.id] = { ...u[provider.id], enabled: true };
+                                  u[provider.id] = { ...u[provider.id], enabled: !p.enabled };
                                   setConfig({ ...config, footballApis: u });
                                 }}
                                 className="btn-ghost text-xs px-3 py-1"
                               >
-                                Enable
+                                {p.enabled ? 'Disable' : 'Enable'}
                               </button>
                             </div>
                           </div>
@@ -416,6 +441,64 @@ export default function AdminPage() {
                   ) : (
                     <div className="px-6 py-12 text-center text-muted-foreground text-sm">
                       No crawl targets configured. Click "Add URL" to get started.
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
+            {/* ── Data Viewer ──────────────────────────────────────── */}
+            {active === 'data' && (
+              <motion.div key="data" variants={fadeIn} initial="hidden" animate="show" exit="hidden" className="space-y-6">
+                <div className="card-base overflow-hidden">
+                  <div className="px-6 py-4 border-b border-border flex items-center justify-between">
+                    <h3 className="font-semibold text-sm text-foreground flex items-center gap-2">
+                      <Database size={16} className="text-cyan-500" /> Scraped Data Memory
+                      {scrapedData.length > 0 && <span className="badge badge-purple">{scrapedData.length} records</span>}
+                    </h3>
+                    <button className="btn-icon" onClick={loadScrapedData}>
+                      <RefreshCcw size={14} />
+                    </button>
+                  </div>
+
+                  {scrapedData.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="data-table text-xs">
+                        <thead>
+                          <tr>
+                            <th>Date/Time</th>
+                            <th>Source API</th>
+                            <th>Match</th>
+                            <th>League</th>
+                            <th>Odds (1x2)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {scrapedData.map(d => (
+                            <tr key={d.id}>
+                              <td className="text-muted-foreground whitespace-nowrap">
+                                {new Date(d.createdAt).toLocaleString()}
+                              </td>
+                              <td><span className="badge badge-gray">{d.sourceApi}</span></td>
+                              <td className="font-medium text-foreground">{d.homeTeam} vs {d.awayTeam}</td>
+                              <td className="text-muted-foreground">{d.league}</td>
+                              <td>
+                                {d.odds ? (
+                                  <div className="flex gap-1.5">
+                                    <span className="bg-secondary px-1.5 py-0.5 rounded text-[10px]">{d.odds.home?.toFixed(2)}</span>
+                                    <span className="bg-secondary px-1.5 py-0.5 rounded text-[10px]">{d.odds.draw?.toFixed(2)}</span>
+                                    <span className="bg-secondary px-1.5 py-0.5 rounded text-[10px]">{d.odds.away?.toFixed(2)}</span>
+                                  </div>
+                                ) : 'N/A'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="px-6 py-12 text-center text-muted-foreground text-sm">
+                      No scraped data found in database. The scraper agent will collect data automatically.
                     </div>
                   )}
                 </div>

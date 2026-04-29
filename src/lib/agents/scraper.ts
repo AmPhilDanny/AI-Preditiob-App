@@ -22,36 +22,69 @@ export interface MatchData {
 export class ScraperAgent {
   constructor() {}
 
-  private async getActiveApiService(): Promise<FootballApiService | null> {
+  private async getActiveApiServices(): Promise<{name: string, service: FootballApiService}[]> {
     const config = await configService.getConfig();
+    const services: {name: string, service: FootballApiService}[] = [];
     
     if (config.footballApis.api1.enabled && config.footballApis.api1.apiKey) {
-      return new APIFootballService(config.footballApis.api1.apiKey);
+      services.push({ name: 'api-sports.io', service: new APIFootballService(config.footballApis.api1.apiKey) });
     }
     if (config.footballApis.api2.enabled && config.footballApis.api2.apiKey) {
-      return new FootballDataService(config.footballApis.api2.apiKey);
+      services.push({ name: 'football-data.org', service: new FootballDataService(config.footballApis.api2.apiKey) });
     }
     if (config.footballApis.api3.enabled && config.footballApis.api3.apiKey) {
-      return new TheSportsDBService(config.footballApis.api3.apiKey);
+      services.push({ name: 'thesportsdb.com', service: new TheSportsDBService(config.footballApis.api3.apiKey) });
     }
     if (config.footballApis.api4.enabled && config.footballApis.api4.apiKey) {
-      return new APIFootballDotComService(config.footballApis.api4.apiKey);
+      services.push({ name: 'apifootball.com', service: new APIFootballDotComService(config.footballApis.api4.apiKey) });
     }
     
-    return null;
+    return services;
   }
 
   async fetchHybridData(): Promise<MatchData[]> {
-    const apiService = await this.getActiveApiService();
+    const apiServices = await this.getActiveApiServices();
     
-    console.log(`Gathering data and sync with external API...`);
+    console.log(`Gathering data and sync with external APIs... Found ${apiServices.length} active APIs.`);
     
-    let fixtures: NormalizedFixture[] = [];
-    if (apiService) {
+    let allFixtures: MatchData[] = [];
+    
+    for (const { name, service } of apiServices) {
       try {
-        fixtures = await apiService.getTodayFixtures();
+        const fixtures = await service.getTodayFixtures();
+        const mappedFixtures = fixtures.map(f => ({
+          id: f.externalId,
+          homeTeam: f.homeTeam,
+          awayTeam: f.awayTeam,
+          league: f.league,
+          odds: {
+            home: 1.0 + Math.random() * 2,
+            draw: 2.0 + Math.random() * 2,
+            away: 2.0 + Math.random() * 3
+          },
+          apiStats: { source: name, ...f }
+        }));
+        
+        allFixtures.push(...mappedFixtures);
+        
+        // Save to DB
+        const { default: prisma } = await import('@/lib/prisma');
+        for (const m of mappedFixtures) {
+          await prisma.scrapedData.create({
+            data: {
+              sourceApi: name,
+              matchId: m.id,
+              homeTeam: m.homeTeam,
+              awayTeam: m.awayTeam,
+              league: m.league,
+              matchDate: new Date(),
+              odds: m.odds,
+              rawStats: m.apiStats
+            }
+          });
+        }
       } catch (err) {
-        console.error("Football API fetch failed:", err);
+        console.error(`Football API fetch failed for ${name}:`, err);
       }
     }
 
@@ -63,30 +96,41 @@ export class ScraperAgent {
       { name: "Inter vs Milan", homeOdd: 2.20, drawOdd: 3.20, awayOdd: 3.40, league: "Serie A" }
     ];
 
-    if (fixtures.length > 0) {
-      return fixtures.map(f => ({
-        id: f.externalId,
-        homeTeam: f.homeTeam,
-        awayTeam: f.awayTeam,
-        league: f.league,
+    if (allFixtures.length === 0) {
+      allFixtures = baseMatches.map(scraped => ({
+        homeTeam: scraped.name.split(' vs ')[0],
+        awayTeam: scraped.name.split(' vs ')[1],
+        league: scraped.league,
         odds: {
-          home: 1.0 + Math.random() * 2,
-          draw: 2.0 + Math.random() * 2,
-          away: 2.0 + Math.random() * 3
-        },
-        apiStats: f
+          home: scraped.homeOdd,
+          draw: scraped.drawOdd,
+          away: scraped.awayOdd
+        }
       }));
     }
 
-    return baseMatches.map(scraped => ({
-      homeTeam: scraped.name.split(' vs ')[0],
-      awayTeam: scraped.name.split(' vs ')[1],
-      league: scraped.league,
-      odds: {
-        home: scraped.homeOdd,
-        draw: scraped.drawOdd,
-        away: scraped.awayOdd
-      }
-    }));
+    // Auto delete data older than 10 days
+    await this.deleteOldData();
+
+    return allFixtures;
+  }
+  
+  private async deleteOldData() {
+    try {
+      const { default: prisma } = await import('@/lib/prisma');
+      const tenDaysAgo = new Date();
+      tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
+      
+      const result = await prisma.scrapedData.deleteMany({
+        where: {
+          createdAt: {
+            lt: tenDaysAgo
+          }
+        }
+      });
+      console.log(`Deleted ${result.count} old scraped data records.`);
+    } catch (err) {
+      console.error('Failed to delete old scraped data:', err);
+    }
   }
 }

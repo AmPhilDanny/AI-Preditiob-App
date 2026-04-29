@@ -1,21 +1,22 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
-export async function GET() {
+export async function POST(request: Request) {
   try {
-    const history = await prisma.predictionSlip.findMany({
-      orderBy: {
-        createdAt: 'desc'
-      },
-      take: 50 // Limit to latest 50 slips
+    const { id, status } = await request.json();
+    
+    if (!id || !status) {
+      return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
+    }
+
+    const updated = await prisma.predictionSlip.update({
+      where: { id },
+      data: { status }
     });
 
-    return NextResponse.json(history);
-  } catch (error: any) {
-    console.error("History fetch error:", error);
-    return NextResponse.json({ 
-      success: false, 
-      error: error.message 
-    }, { status: 500 });
+    return NextResponse.json({ success: true, updated });
+  } catch (error) {
+    console.error('Error updating history:', error);
+    return NextResponse.json({ error: 'Failed to update slip status' }, { status: 500 });
   }
 }

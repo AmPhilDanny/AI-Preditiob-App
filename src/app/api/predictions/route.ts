@@ -8,6 +8,7 @@ import prisma from '@/lib/prisma';
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const targetStr = searchParams.get('targets');
+  const userPrompt = searchParams.get('prompt') || undefined;
   const targets = targetStr ? targetStr.split(',').map(Number) : [2, 5, 10];
 
   const config = await configService.getConfig();
@@ -23,7 +24,7 @@ export async function GET(request: Request) {
 
   try {
     const matches = await scraper.fetchHybridData();
-    const slips = await analyst.generateSlips(matches, targets);
+    const slips = await analyst.generateSlips(matches, targets, userPrompt);
     const systemHealth = await health.checkSystemHealth();
 
     // Persist slips to database for history tracking

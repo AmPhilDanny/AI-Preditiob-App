@@ -10,13 +10,17 @@ export class TheSportsDBService implements FootballApiService {
   }
 
   private async fetchFromAPI(endpoint: string) {
-    const response = await fetch(`${this.baseUrl}/${endpoint}`);
-
-    if (!response.ok) {
-      throw new Error(`TheSportsDB error: ${response.statusText}`);
+    try {
+      const response = await fetch(`${this.baseUrl}/${endpoint}`);
+      if (!response.ok) {
+        console.warn(`TheSportsDB error: ${response.statusText}`);
+        return {};
+      }
+      return response.json();
+    } catch (e: any) {
+      console.warn(`TheSportsDB connection failed: ${e.message}`);
+      return {};
     }
-
-    return response.json();
   }
 
   async getTodayFixtures(): Promise<NormalizedFixture[]> {

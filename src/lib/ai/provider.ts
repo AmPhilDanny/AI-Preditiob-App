@@ -22,16 +22,17 @@ export class AIFactory {
     this.config = config;
   }
 
-  async predict(matchData: any): Promise<PredictionResult> {
+  async predict(matchData: any, userPrompt?: string): Promise<PredictionResult> {
     const prompt = this.config.systemPrompt || "Predict the outcome of this football match.";
+    const fullPrompt = userPrompt ? `${prompt}\n\nUser Request: ${userPrompt}` : prompt;
     
     switch (this.config.provider) {
       case 'gemini':
-        return this.predictWithGemini(matchData, prompt);
+        return this.predictWithGemini(matchData, fullPrompt);
       case 'grok':
-        return this.predictWithGrok(matchData, prompt);
+        return this.predictWithGrok(matchData, fullPrompt);
       case 'mistral':
-        return this.predictWithMistral(matchData, prompt);
+        return this.predictWithMistral(matchData, fullPrompt);
       default:
         throw new Error(`Unsupported AI provider: ${this.config.provider}`);
     }

@@ -22,12 +22,18 @@ export default function HomePage() {
   const [data, setData]       = useState<any>(null);
   const [error, setError]     = useState<string | null>(null);
   const [targets, setTargets] = useState([2, 5, 10]);
+  const [promptInput, setPromptInput] = useState('');
 
   const fetchData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res  = await fetch(`/api/predictions?targets=${targets.join(',')}`);
+      const url = new URL('/api/predictions', window.location.origin);
+      url.searchParams.set('targets', targets.join(','));
+      if (promptInput) {
+        url.searchParams.set('prompt', promptInput);
+      }
+      const res  = await fetch(url.toString());
       const json = await res.json();
       if (!json.success) throw new Error(json.error || 'Pipeline error');
       setData(json);
@@ -96,17 +102,25 @@ export default function HomePage() {
         </motion.p>
 
         {/* Controls */}
-        <motion.div variants={fadeUp} className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={fetchData}
-            disabled={loading}
-            className="btn-primary"
-          >
-            {loading
-              ? <RefreshCcw size={15} className="animate-spin" />
-              : <Zap size={15} />}
-            {loading ? 'Generating…' : 'Generate Slips'}
-          </button>
+        <motion.div variants={fadeUp} className="flex flex-col gap-4">
+          <input
+            type="text"
+            className="form-input bg-secondary border-border"
+            placeholder="E.g., Predict Arsenal outcomes, Focus on high scoring matches..."
+            value={promptInput}
+            onChange={(e) => setPromptInput(e.target.value)}
+          />
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={fetchData}
+              disabled={loading}
+              className="btn-primary"
+            >
+              {loading
+                ? <RefreshCcw size={15} className="animate-spin" />
+                : <Zap size={15} />}
+              {loading ? 'Generating…' : 'Generate Predicted Match Slips'}
+            </button>
 
           <div className="flex items-center gap-2">
             {[2, 5, 10].map(t => (

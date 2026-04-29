@@ -16,12 +16,12 @@ export class AnalystAgent {
     this.aiFactory = new AIFactory(config);
   }
 
-  async generateSlips(matches: MatchData[], targetOdds: number[] = [2, 5, 10]): Promise<BetSlip[]> {
+  async generateSlips(matches: MatchData[], targetOdds: number[] = [2, 5, 10], userPrompt?: string): Promise<BetSlip[]> {
     console.log(`Generating slips for target odds: ${targetOdds.join(', ')}`);
     
     const allPredictions: PredictionResult[] = [];
     for (const match of matches) {
-      const prediction = await this.aiFactory.predict(match);
+      const prediction = await this.aiFactory.predict(match, userPrompt);
       allPredictions.push(prediction);
     }
 

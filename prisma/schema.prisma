@@ -44,3 +44,16 @@ model PredictionSlip {
   actualResults Json?  // Store actual scores for learning
   createdAt   DateTime @default(now())
 }
+
+model ScrapedData {
+  id          String   @id @default(cuid())
+  sourceApi   String
+  matchId     String?  // External ID if available
+  homeTeam    String
+  awayTeam    String
+  league      String
+  matchDate   DateTime?
+  odds        Json     // Home, draw, away odds
+  rawStats    Json?    // Raw API data
+  createdAt   DateTime @default(now())
+}
