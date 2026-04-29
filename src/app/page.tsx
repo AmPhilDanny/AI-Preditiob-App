@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   RefreshCcw, Zap, Brain, Target, Activity, Shield,
-  AlertTriangle, ArrowRight, ChevronRight, TrendingUp
+  AlertTriangle, ArrowRight, ChevronRight, TrendingUp,
+  Globe, CheckCircle, Play, Loader2, Send, MessageSquare,
+  Sparkles, Check, Database
 } from 'lucide-react';
 
 const fadeUp = {
@@ -17,134 +19,325 @@ const stagger = {
   show:   { transition: { staggerChildren: 0.1 } },
 };
 
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [data, setData]       = useState<any>(null);
   const [error, setError]     = useState<string | null>(null);
   const [targets, setTargets] = useState([2, 5, 10]);
-  const [promptInput, setPromptInput] = useState('');
+  const [messages, setMessages] = useState<Message[]>([
+    { role: 'assistant', content: 'Hello! I am your AI Football Assistant. I can help you analyze match data and generate high-probability slips. What would you like to know today?' }
+  ]);
+  const [chatInput, setChatInput] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Agent Status State
+  const [agents, setAgents] = useState({
+    scraper:   { status: 'idle', lastRun: null as string | null },
+    processor: { status: 'idle', lastRun: null as string | null },
+    analyst:   { status: 'idle', lastRun: null as string | null },
+    validator: { status: 'idle', lastRun: null as string | null },
+    health:    { status: 'online', lastRun: new Date().toISOString() },
+  });
+
+  const scrollToBottom = () => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const fetchData = async () => {
     setLoading(true);
     setError(null);
+    setAgents(prev => ({ ...prev, analyst: { ...prev.analyst, status: 'running' } }));
+    
     try {
       const url = new URL('/api/predictions', window.location.origin);
       url.searchParams.set('targets', targets.join(','));
-      if (promptInput) {
-        url.searchParams.set('prompt', promptInput);
-      }
+      
       const res  = await fetch(url.toString());
       const json = await res.json();
       if (!json.success) throw new Error(json.error || 'Pipeline error');
+      
       setData(json);
+      setAgents(prev => ({ 
+        ...prev, 
+        analyst: { status: 'success', lastRun: new Date().toISOString() },
+        validator: { status: 'success', lastRun: new Date().toISOString() }
+      }));
     } catch (err: any) {
       setError(err.message);
+      setAgents(prev => ({ ...prev, analyst: { ...prev.analyst, status: 'idle' } }));
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  const handleChat = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim() || isTyping) return;
 
-  /* ── Loading ── */
-  if (loading && !data) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-64px)] gap-4">
-        <div className="relative w-14 h-14">
-          <div className="absolute inset-0 rounded-full border-2 border-border" />
-          <div className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-          <Brain className="absolute inset-0 m-auto text-primary w-6 h-6" />
-        </div>
-        <p className="text-sm text-muted-foreground font-medium animate-pulse">
-          Syncing AI agents…
-        </p>
-      </div>
-    );
-  }
+    const userMsg = chatInput;
+    setChatInput('');
+    setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
+    setIsTyping(true);
 
-  const stats = [
-    { label: 'Avg Accuracy',  value: '78.4%',                                   icon: Target,     color: 'text-violet-500' },
-    { label: 'AI Confidence', value: `${data?.health?.apiUsage?.gemini || 95}%`, icon: Brain,      color: 'text-cyan-500' },
-    { label: 'System Health', value: data?.health?.status || 'Online',           icon: Activity,   color: 'text-emerald-500' },
-    { label: 'Win Rate',      value: '84%',                                      icon: TrendingUp, color: 'text-amber-500' },
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userMsg }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
+      }
+    } catch (err) {
+      console.error('Chat error:', err);
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
+  const triggerAgent = async (name: 'scraper' | 'processor') => {
+    setAgents(prev => ({ ...prev, [name]: { ...prev[name], status: 'running' } }));
+    try {
+      const endpoint = name === 'scraper' ? '/api/cron/scrape' : '/api/admin/process';
+      const res = await fetch(endpoint, { method: name === 'scraper' ? 'GET' : 'POST' });
+      const json = await res.json();
+      
+      if (json.success || res.ok) {
+        setAgents(prev => ({ ...prev, [name]: { status: 'success', lastRun: new Date().toISOString() } }));
+        // Auto-reset to idle after 5s
+        setTimeout(() => {
+          setAgents(prev => ({ ...prev, [name]: { ...prev[name], status: 'idle' } }));
+        }, 5000);
+      } else {
+        throw new Error('Agent failed');
+      }
+    } catch (err) {
+      setAgents(prev => ({ ...prev, [name]: { ...prev[name], status: 'idle' } }));
+      alert(`${name.toUpperCase()} Agent failed to complete task.`);
+    }
+  };
+
+  useEffect(() => { 
+    // Initial fetch for background stats
+    fetch('/api/admin/health').then(r => r.json()).then(h => {
+      if (h) setAgents(prev => ({ ...prev, health: { status: 'online', lastRun: new Date().toISOString() } }));
+    });
+    setLoading(false); 
+  }, []);
+
+  const agentCards = [
+    { id: 'scraper',   name: 'Scraper',   icon: Globe,        color: 'text-cyan-500',    bg: 'bg-cyan-500/10' },
+    { id: 'processor', name: 'Processor', icon: Brain,        color: 'text-amber-500',   bg: 'bg-amber-500/10' },
+    { id: 'analyst',   name: 'Analyst',   icon: Terminal,      color: 'text-violet-500',  bg: 'bg-violet-500/10' },
+    { id: 'validator', name: 'Validator', icon: CheckCircle,   color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+    { id: 'health',    name: 'Health',    icon: Shield,        color: 'text-blue-500',    bg: 'bg-blue-500/10' },
   ];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 pb-24">
 
-      {/* ── Hero ─────────────────────────────────────────────── */}
-      <motion.section
-        className="mb-14"
+      {/* ── Hero & Chat ─────────────────────────────────────── */}
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-14">
+        
+        {/* Left: Info */}
+        <motion.div 
+          className="lg:col-span-5 space-y-6"
+          variants={stagger}
+          initial="hidden"
+          animate="show"
+        >
+          <motion.div variants={fadeUp}>
+            <span className="badge badge-purple gap-2">
+              <span className="dot-online" />
+              Neural Network Live
+            </span>
+          </motion.div>
+
+          <motion.h1
+            variants={fadeUp}
+            className="font-display text-4xl sm:text-5xl font-black tracking-tight text-foreground leading-[1.1]"
+          >
+            Multi-Agent <br />
+            <span className="gradient-text">Neural Consensus</span>
+          </motion.h1>
+
+          <motion.p variants={fadeUp} className="text-muted-foreground text-lg leading-relaxed">
+            Communicate with your AI agents, analyze deep market trends, and generate winning slips with absolute precision.
+          </motion.p>
+
+          <motion.div variants={fadeUp} className="flex flex-wrap gap-4 pt-2">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-secondary border border-border">
+              <Database size={16} className="text-cyan-500" />
+              <div className="min-w-0">
+                <p className="text-[10px] uppercase font-bold text-muted-foreground leading-none mb-1">Knowledge</p>
+                <p className="text-xs font-bold text-foreground">Active Datasets</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-secondary border border-border">
+              <Sparkles size={16} className="text-amber-500" />
+              <div className="min-w-0">
+                <p className="text-[10px] uppercase font-bold text-muted-foreground leading-none mb-1">Intelligence</p>
+                <p className="text-xs font-bold text-foreground">Real-time Analysis</p>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+
+        {/* Right: Chatbox */}
+        <motion.div 
+          className="lg:col-span-7"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="card-base flex flex-col h-[500px] overflow-hidden border-primary/20 shadow-2xl shadow-primary/5">
+            {/* Chat Header */}
+            <div className="px-6 py-4 border-b border-border bg-secondary/50 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                  <MessageSquare size={16} className="text-primary" /> AI Assistant
+                </h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={fetchData}
+                  disabled={loading}
+                  className="btn-primary py-1 px-3 text-[10px] h-8"
+                >
+                  {loading ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} />}
+                  Generate Slips
+                </button>
+              </div>
+            </div>
+
+            {/* Chat Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+              {messages.map((msg, i) => (
+                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${
+                    msg.role === 'user' 
+                      ? 'bg-primary text-white rounded-tr-none' 
+                      : 'bg-secondary text-foreground rounded-tl-none border border-border'
+                  }`}>
+                    {msg.content}
+                  </div>
+                </div>
+              ))}
+              {isTyping && (
+                <div className="flex justify-start">
+                  <div className="bg-secondary px-4 py-3 rounded-2xl rounded-tl-none border border-border">
+                    <div className="flex gap-1">
+                      <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-bounce" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:0.2s]" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:0.4s]" />
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+
+            {/* Chat Input */}
+            <form onSubmit={handleChat} className="p-4 border-t border-border bg-secondary/30">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Ask about today's matches or analysis..."
+                  className="form-input pr-12 bg-background"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                />
+                <button 
+                  type="submit" 
+                  disabled={!chatInput.trim() || isTyping}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  <Send size={18} />
+                </button>
+              </div>
+            </form>
+          </div>
+        </motion.div>
+      </section>
+
+      {/* ── Agent Process Displays ─────────────────────────── */}
+      <motion.section 
+        className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-12"
         variants={stagger}
         initial="hidden"
         animate="show"
       >
-        {/* Live pill */}
-        <motion.div variants={fadeUp} className="mb-6">
-          <span className="badge badge-purple gap-2">
-            <span className="dot-online" />
-            Live Analysis Active
-          </span>
-        </motion.div>
+        {agentCards.map((agent) => {
+          const state = (agents as any)[agent.id];
+          const isRunning = state.status === 'running';
+          const isSuccess = state.status === 'success';
 
-        {/* Headline */}
-        <motion.h1
-          variants={fadeUp}
-          className="font-display text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight mb-4 text-foreground"
-        >
-          AI Football{' '}
-          <span className="gradient-text">Predictions</span>
-        </motion.h1>
-
-        <motion.p variants={fadeUp} className="text-muted-foreground text-lg max-w-2xl mb-8 leading-relaxed">
-          Multi-agent neural consensus across Gemini, Grok and Mistral.
-          High-probability accumulators, generated in real-time.
-        </motion.p>
-
-        {/* Controls */}
-        <motion.div variants={fadeUp} className="flex flex-col gap-4">
-          <input
-            type="text"
-            className="form-input bg-secondary border-border"
-            placeholder="E.g., Predict Arsenal outcomes, Focus on high scoring matches..."
-            value={promptInput}
-            onChange={(e) => setPromptInput(e.target.value)}
-          />
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={fetchData}
-              disabled={loading}
-              className="btn-primary"
+          return (
+            <motion.div 
+              key={agent.id}
+              variants={fadeUp}
+              className={`card-base p-4 relative overflow-hidden transition-all duration-300 ${
+                isRunning ? 'border-primary/50 ring-1 ring-primary/20' : ''
+              }`}
             >
-              {loading
-                ? <RefreshCcw size={15} className="animate-spin" />
-                : <Zap size={15} />}
-              {loading ? 'Generating…' : 'Generate Predicted Match Slips'}
-            </button>
+              <div className="flex items-center justify-between mb-3">
+                <div className={`p-2 rounded-lg ${agent.bg} ${agent.color}`}>
+                  <agent.icon size={18} />
+                </div>
+                {isSuccess && <Check size={16} className="text-emerald-500 animate-in zoom-in duration-300" />}
+                {isRunning && <Loader2 size={16} className="text-primary animate-spin" />}
+              </div>
 
-          <div className="flex items-center gap-2">
-            {[2, 5, 10].map(t => (
-              <button
-                key={t}
-                onClick={() =>
-                  setTargets(prev =>
-                    prev.includes(t)
-                      ? prev.length > 1 ? prev.filter(x => x !== t) : prev
-                      : [...prev, t]
-                  )
-                }
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all duration-150 ${
-                  targets.includes(t)
-                    ? 'bg-primary/10 text-primary border-primary/30'
-                    : 'bg-secondary text-muted-foreground border-border hover:border-primary/30'
-                }`}
-              >
-                {t}× Odds
-              </button>
-            ))}
-          </div>
-          </div>
-        </motion.div>
+              <h4 className="text-xs font-bold text-foreground mb-1">{agent.name}</h4>
+              
+              <div className="flex items-center gap-1.5">
+                <span className={
+                  isRunning ? 'dot-busy' :
+                  state.status === 'online' || isSuccess ? 'dot-online' : 'dot-idle'
+                } />
+                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+                  {isRunning ? 'Working' : isSuccess ? 'Saved' : state.status}
+                </span>
+              </div>
+
+              {/* Progress indicator */}
+              {isRunning && (
+                <div className="absolute bottom-0 left-0 w-full h-1 bg-secondary">
+                  <motion.div 
+                    className="h-full bg-primary"
+                    initial={{ width: 0 }}
+                    animate={{ width: '100%' }}
+                    transition={{ duration: 5, ease: 'linear' }}
+                  />
+                </div>
+              )}
+
+              {/* Triggers for Scraper/Processor */}
+              {(agent.id === 'scraper' || agent.id === 'processor') && (
+                <button
+                  onClick={() => triggerAgent(agent.id as any)}
+                  disabled={isRunning}
+                  className="mt-3 w-full btn-ghost py-1 text-[9px] h-7 gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                  style={{ opacity: 1 }} // Force visible for mobile
+                >
+                  <Play size={10} /> Trigger
+                </button>
+              )}
+            </motion.div>
+          );
+        })}
       </motion.section>
 
       {/* ── Error ────────────────────────────────────────────── */}
@@ -155,43 +348,34 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* ── Stats Row ─────────────────────────────────────────── */}
-      <motion.section
-        className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-12"
-        variants={stagger}
-        initial="hidden"
-        animate="show"
-      >
-        {stats.map((s, i) => (
-          <motion.div
-            key={s.label}
-            variants={fadeUp}
-            className="card-base p-5 flex items-start gap-4"
-          >
-            <div className={`p-2.5 rounded-lg bg-secondary shrink-0 ${s.color}`}>
-              <s.icon size={18} />
-            </div>
-            <div className="min-w-0">
-              <p className="section-label mb-1">{s.label}</p>
-              <p className="font-display text-2xl font-black tracking-tight text-foreground">
-                {s.value}
-              </p>
-            </div>
-          </motion.div>
-        ))}
-      </motion.section>
-
       {/* ── Slip Cards ────────────────────────────────────────── */}
       {data?.slips && data.slips.length > 0 ? (
         <motion.section
           variants={stagger}
           initial="hidden"
           animate="show"
+          className="space-y-6"
         >
-          <motion.div variants={fadeUp} className="flex items-center justify-between mb-6">
+          <motion.div variants={fadeUp} className="flex items-center justify-between">
             <div>
-              <h2 className="font-display text-2xl font-black text-foreground">Premium Slips</h2>
-              <p className="text-sm text-muted-foreground mt-1">Latest neural consensus picks</p>
+              <h2 className="font-display text-2xl font-black text-foreground">AI Verified Slips</h2>
+              <p className="text-sm text-muted-foreground mt-1">Consensus reached across 3 neural nodes</p>
+            </div>
+            <div className="flex items-center gap-2">
+              {[2, 5, 10].map(t => (
+                <button
+                  key={t}
+                  onClick={() => {
+                    setTargets(prev => prev.includes(t) ? (prev.length > 1 ? prev.filter(x => x !== t) : prev) : [...prev, t]);
+                    fetchData();
+                  }}
+                  className={`px-3 py-1 text-[10px] font-bold rounded-lg border transition-all ${
+                    targets.includes(t) ? 'bg-primary/10 text-primary border-primary/30' : 'bg-secondary text-muted-foreground border-border'
+                  }`}
+                >
+                  {t}×
+                </button>
+              ))}
             </div>
           </motion.div>
 
@@ -244,7 +428,7 @@ export default function HomePage() {
                 {/* Card footer */}
                 <div className="p-4 bg-secondary/30">
                   <button className="btn-secondary w-full justify-center">
-                    Analyse Market <ArrowRight size={14} />
+                    Full Analysis <ArrowRight size={14} />
                   </button>
                 </div>
               </motion.div>
@@ -255,8 +439,8 @@ export default function HomePage() {
         !loading && (
           <div className="card-base p-16 flex flex-col items-center gap-4 text-center">
             <Zap className="text-muted-foreground" size={36} />
-            <p className="font-semibold text-foreground">No slips generated yet</p>
-            <p className="text-sm text-muted-foreground">Click "Generate Slips" to run the AI pipeline.</p>
+            <p className="font-semibold text-foreground">Awaiting Prediction Sequence</p>
+            <p className="text-sm text-muted-foreground">Use the chat assistant or click "Generate Slips" above.</p>
           </div>
         )
       )}
