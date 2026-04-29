@@ -113,11 +113,15 @@ export default function AdminPage() {
       if (data.success && data.config) {
         // Update local state with the verified-saved config from DB
         setConfig(data.config);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2500);
+      } else {
+        console.error("Save failed:", data.error);
+        alert("Failed to save configuration. Check console for details.");
       }
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
     } catch (e) {
       console.error('Save failed:', e);
+      alert("Failed to save configuration due to a network error.");
     } finally {
       setSaving(false);
     }
