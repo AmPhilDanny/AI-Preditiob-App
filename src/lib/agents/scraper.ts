@@ -67,21 +67,25 @@ export class ScraperAgent {
         
         allFixtures.push(...mappedFixtures);
         
-        // Save to DB
-        const { default: prisma } = await import('@/lib/prisma');
-        for (const m of mappedFixtures) {
-          await prisma.scrapedData.create({
-            data: {
-              sourceApi: name,
-              matchId: m.id,
-              homeTeam: m.homeTeam,
-              awayTeam: m.awayTeam,
-              league: m.league,
-              matchDate: new Date(),
-              odds: m.odds,
-              rawStats: m.apiStats
-            }
-          });
+        // Save to DB — wrapped in try/catch in case ScrapedData table isn't created yet
+        try {
+          const { default: prisma } = await import('@/lib/prisma');
+          for (const m of mappedFixtures) {
+            await prisma.scrapedData.create({
+              data: {
+                sourceApi: name,
+                matchId: m.id,
+                homeTeam: m.homeTeam,
+                awayTeam: m.awayTeam,
+                league: m.league,
+                matchDate: new Date(),
+                odds: m.odds,
+                rawStats: m.apiStats
+              }
+            });
+          }
+        } catch (dbErr) {
+          console.warn(`Could not save scraped data to DB (table may not exist yet):`, dbErr);
         }
       } catch (err) {
         console.error(`Football API fetch failed for ${name}:`, err);
