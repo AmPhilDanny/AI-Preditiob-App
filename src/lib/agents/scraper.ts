@@ -4,6 +4,9 @@ import { FootballDataService } from "../services/football-data";
 import { TheSportsDBService } from "../services/the-sports-db";
 import { APIFootballDotComService } from "../services/api-football-com";
 import { FootballApiService, NormalizedFixture } from "../services/football-api.interface";
+import axios from 'axios';
+import * as cheerio from 'cheerio';
+import { AIFactory, AIConfig } from "../ai/provider";
 
 export interface MatchData {
   id?: string;
@@ -17,6 +20,7 @@ export interface MatchData {
   };
   apiStats?: any;
   scrapedOdds?: any;
+  sourceType?: 'api' | 'web';
 }
 
 export class ScraperAgent {
@@ -44,15 +48,15 @@ export class ScraperAgent {
 
   async fetchHybridData(): Promise<MatchData[]> {
     const apiServices = await this.getActiveApiServices();
-    
-    console.log(`Gathering data and sync with external APIs... Found ${apiServices.length} active APIs.`);
+    console.log(`Gathering data from ${apiServices.length} active APIs...`);
     
     let allFixtures: MatchData[] = [];
     
+    // 1. Fetch from all enabled APIs
     for (const { name, service } of apiServices) {
       try {
         const fixtures = await service.getTodayFixtures();
-        const mappedFixtures = fixtures.map(f => ({
+        const mappedFixtures: MatchData[] = fixtures.map(f => ({
           id: f.externalId,
           homeTeam: f.homeTeam,
           awayTeam: f.awayTeam,
@@ -62,61 +66,108 @@ export class ScraperAgent {
             draw: 2.0 + Math.random() * 2,
             away: 2.0 + Math.random() * 3
           },
-          apiStats: { source: name, ...f }
+          apiStats: { source: name, ...f },
+          sourceType: 'api'
         }));
         
         allFixtures.push(...mappedFixtures);
-        
-        // Save to DB — wrapped in try/catch in case ScrapedData table isn't created yet
-        try {
-          const { default: prisma } = await import('@/lib/prisma');
-          for (const m of mappedFixtures) {
-            await prisma.scrapedData.create({
-              data: {
-                sourceApi: name,
-                matchId: m.id,
-                homeTeam: m.homeTeam,
-                awayTeam: m.awayTeam,
-                league: m.league,
-                matchDate: new Date(),
-                odds: m.odds,
-                rawStats: m.apiStats
-              }
-            });
-          }
-        } catch (dbErr) {
-          console.warn(`Could not save scraped data to DB (table may not exist yet):`, dbErr);
-        }
+        await this.saveToDb(mappedFixtures, name);
       } catch (err) {
         console.error(`Football API fetch failed for ${name}:`, err);
       }
     }
 
-    const baseMatches = [
-      { name: "Arsenal vs Man City", homeOdd: 2.05, drawOdd: 3.40, awayOdd: 3.20, league: "Premier League" },
-      { name: "Real Madrid vs Barcelona", homeOdd: 1.95, drawOdd: 3.60, awayOdd: 3.80, league: "La Liga" },
-      { name: "Liverpool vs Chelsea", homeOdd: 1.85, drawOdd: 3.50, awayOdd: 4.20, league: "Premier League" },
-      { name: "PSG vs Marseille", homeOdd: 1.45, drawOdd: 4.50, awayOdd: 6.50, league: "Ligue 1" },
-      { name: "Inter vs Milan", homeOdd: 2.20, drawOdd: 3.20, awayOdd: 3.40, league: "Serie A" }
-    ];
+    // 2. Crawl all configured websites
+    const webData = await this.crawlWebsites();
+    allFixtures.push(...webData);
+    if (webData.length > 0) {
+      await this.saveToDb(webData, 'web-crawler');
+    }
 
+    // Fallback data if everything fails
     if (allFixtures.length === 0) {
+      const baseMatches = [
+        { name: "Arsenal vs Man City", homeOdd: 2.05, drawOdd: 3.40, awayOdd: 3.20, league: "Premier League" },
+        { name: "Real Madrid vs Barcelona", homeOdd: 1.95, drawOdd: 3.60, awayOdd: 3.80, league: "La Liga" }
+      ];
       allFixtures = baseMatches.map(scraped => ({
         homeTeam: scraped.name.split(' vs ')[0],
         awayTeam: scraped.name.split(' vs ')[1],
         league: scraped.league,
-        odds: {
-          home: scraped.homeOdd,
-          draw: scraped.drawOdd,
-          away: scraped.awayOdd
-        }
+        odds: { home: scraped.homeOdd, draw: scraped.drawOdd, away: scraped.awayOdd }
       }));
     }
 
-    // Auto delete data older than 10 days
     await this.deleteOldData();
-
     return allFixtures;
+  }
+
+  private async crawlWebsites(): Promise<MatchData[]> {
+    const config = await configService.getConfig();
+    const urls = config.scrapingUrls || [];
+    const webMatches: MatchData[] = [];
+
+    console.log(`Crawling ${urls.length} configured websites...`);
+
+    for (const url of urls) {
+      try {
+        const response = await axios.get(url, { timeout: 10000 });
+        const html = response.data;
+        const $ = cheerio.load(html);
+        
+        // Clean up HTML to reduce token usage for AI
+        $('script, style, nav, footer').remove();
+        const cleanContent = $('body').text().replace(/\s+/g, ' ').trim().substring(0, 5000);
+
+        // Use AI to extract matches from the page content
+        const aiConfig: AIConfig = {
+          provider: 'gemini',
+          apiKey: config.aiProviders.gemini.apiKey,
+          model: 'gemini-1.5-flash',
+          systemPrompt: config.agentPrompts.scraper
+        };
+        
+        const ai = new AIFactory(aiConfig);
+        const extracted = await ai.extractFromHtml(cleanContent);
+        
+        extracted.forEach(m => {
+          webMatches.push({
+            homeTeam: m.match.split(' vs ')[0] || 'Unknown',
+            awayTeam: m.match.split(' vs ')[1] || 'Unknown',
+            league: 'Web Scraped',
+            odds: { home: m.odds, draw: 3.0, away: 3.0 },
+            sourceType: 'web',
+            apiStats: { url }
+          });
+        });
+      } catch (err) {
+        console.error(`Failed to crawl ${url}:`, err);
+      }
+    }
+
+    return webMatches;
+  }
+
+  private async saveToDb(matches: MatchData[], source: string) {
+    try {
+      const { default: prisma } = await import('@/lib/prisma');
+      for (const m of matches) {
+        await prisma.scrapedData.create({
+          data: {
+            sourceApi: source,
+            matchId: m.id || `web-${Date.now()}-${Math.random()}`,
+            homeTeam: m.homeTeam,
+            awayTeam: m.awayTeam,
+            league: m.league,
+            matchDate: new Date(),
+            odds: m.odds,
+            rawStats: m.apiStats
+          }
+        });
+      }
+    } catch (dbErr) {
+      console.warn(`Could not save scraped data to DB:`, dbErr);
+    }
   }
   
   private async deleteOldData() {
@@ -126,15 +177,11 @@ export class ScraperAgent {
       tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
       
       const result = await prisma.scrapedData.deleteMany({
-        where: {
-          createdAt: {
-            lt: tenDaysAgo
-          }
-        }
+        where: { createdAt: { lt: tenDaysAgo } }
       });
-      console.log(`Deleted ${result.count} old scraped data records.`);
+      console.log(`Deleted ${result.count} old records.`);
     } catch (err) {
-      console.error('Failed to delete old scraped data:', err);
+      console.error('Failed to delete old data:', err);
     }
   }
 }

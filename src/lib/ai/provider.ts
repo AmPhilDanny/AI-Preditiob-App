@@ -84,4 +84,19 @@ export class AIFactory {
       success: true
     };
   }
+
+  async extractFromHtml(html: string): Promise<PredictionResult[]> {
+    console.log(`Extracting match data from HTML using ${this.config.provider}...`);
+    // Simulated extraction logic
+    // In a real app, you would pass the HTML to the LLM with a specific extraction prompt
+    return [
+      {
+        match: "Simulated Match from Web",
+        prediction: "Home Win",
+        odds: 1.85,
+        probability: 0.65,
+        reasoning: "Extracted from web content analysis."
+      }
+    ];
+  }
 }
