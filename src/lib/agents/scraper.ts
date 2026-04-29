@@ -17,6 +17,9 @@ export interface MatchData {
     home: number;
     draw: number;
     away: number;
+    btts?: number;
+    over25?: number;
+    under25?: number;
   };
   apiStats?: any;
   scrapedOdds?: any;
@@ -61,24 +64,40 @@ export class ScraperAgent {
         const fixtures = await service.getTodayFixtures(3);
         console.log(`[SCRAPER] ${name} returned ${fixtures.length} fixtures.`);
         
-        const mappedFixtures: MatchData[] = fixtures.map(f => ({
-          id: f.externalId,
-          homeTeam: f.homeTeam,
-          awayTeam: f.awayTeam,
-          league: f.league,
-          odds: {
-            home: 1.0 + Math.random() * 2,
-            draw: 2.0 + Math.random() * 2,
-            away: 2.0 + Math.random() * 3
-          },
-          // Merge normalized stats and raw data for full storage
-          apiStats: { 
-            source: name, 
-            ...f.stats, 
-            original: f.rawData || f 
-          },
-          sourceType: 'api'
-        }));
+        const mappedFixtures: MatchData[] = fixtures.map(f => {
+          // Attempt to extract real odds from raw data, fallback to probability conversion or default
+          const raw = f.rawData || {};
+          let home = 2.0, draw = 3.0, away = 3.0, btts = 1.9, over = 1.8, under = 1.8;
+
+          if (raw.odd_1) home = parseFloat(raw.odd_1);
+          else if (raw.prob_HW) home = parseFloat((100 / parseFloat(raw.prob_HW)).toFixed(2));
+
+          if (raw.odd_x) draw = parseFloat(raw.odd_x);
+          else if (raw.prob_D) draw = parseFloat((100 / parseFloat(raw.prob_D)).toFixed(2));
+
+          if (raw.odd_2) away = parseFloat(raw.odd_2);
+          else if (raw.prob_AW) away = parseFloat((100 / parseFloat(raw.prob_AW)).toFixed(2));
+
+          if (raw.prob_btts) btts = parseFloat((100 / parseFloat(raw.prob_btts)).toFixed(2));
+          if (raw.prob_O) over = parseFloat((100 / parseFloat(raw.prob_O)).toFixed(2));
+          if (raw.prob_U) under = parseFloat((100 / parseFloat(raw.prob_U)).toFixed(2));
+
+          return {
+            id: f.externalId,
+            homeTeam: f.homeTeam,
+            awayTeam: f.awayTeam,
+            league: f.league,
+            odds: { home, draw, away, btts, over25: over, under25: under },
+            // Merge normalized stats and raw data for full storage
+            apiStats: { 
+              source: name, 
+              ...f.stats, 
+              last5: f.stats?.last5 || { home: raw.match_hometeam_system || 'N/A', away: raw.match_awayteam_system || 'N/A' },
+              original: raw
+            },
+            sourceType: 'api'
+          };
+        });
         
         allFixtures.push(...mappedFixtures);
         await this.saveToDb(mappedFixtures, name);

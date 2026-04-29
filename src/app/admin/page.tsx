@@ -576,8 +576,9 @@ export default function AdminPage() {
                             <th>Date/Time</th>
                             <th>Source API</th>
                             <th>Match</th>
-                            <th>League</th>
                             <th>Odds (1x2)</th>
+                            <th>Advanced (BTTS / O/U)</th>
+                            <th>Form (Last 5)</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -587,16 +588,35 @@ export default function AdminPage() {
                                 {formatToWAT(d.createdAt)}
                               </td>
                               <td><span className="badge badge-gray">{d.sourceApi}</span></td>
-                              <td className="font-medium text-foreground">{d.homeTeam} vs {d.awayTeam}</td>
-                              <td className="text-muted-foreground">{d.league}</td>
+                              <td>
+                                <div className="font-medium text-foreground">{d.homeTeam} vs {d.awayTeam}</div>
+                                <div className="text-xs text-muted-foreground">{d.league}</div>
+                              </td>
                               <td>
                                 {d.odds ? (
                                   <div className="flex gap-1.5">
-                                    <span className="bg-secondary px-1.5 py-0.5 rounded text-[10px]">{d.odds.home?.toFixed(2)}</span>
-                                    <span className="bg-secondary px-1.5 py-0.5 rounded text-[10px]">{d.odds.draw?.toFixed(2)}</span>
-                                    <span className="bg-secondary px-1.5 py-0.5 rounded text-[10px]">{d.odds.away?.toFixed(2)}</span>
+                                    <span className="bg-secondary px-1.5 py-0.5 rounded text-[10px]" title="Home">{d.odds.home?.toFixed(2)}</span>
+                                    <span className="bg-secondary px-1.5 py-0.5 rounded text-[10px]" title="Draw">{d.odds.draw?.toFixed(2)}</span>
+                                    <span className="bg-secondary px-1.5 py-0.5 rounded text-[10px]" title="Away">{d.odds.away?.toFixed(2)}</span>
                                   </div>
                                 ) : 'N/A'}
+                              </td>
+                              <td>
+                                {d.odds ? (
+                                  <div className="flex gap-1.5">
+                                    {d.odds.btts && <span className="bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded text-[10px]" title="BTTS">B: {d.odds.btts.toFixed(2)}</span>}
+                                    {d.odds.over25 && <span className="bg-emerald-500/10 text-emerald-500 px-1.5 py-0.5 rounded text-[10px]" title="Over 2.5">O: {d.odds.over25.toFixed(2)}</span>}
+                                    {d.odds.under25 && <span className="bg-blue-500/10 text-blue-500 px-1.5 py-0.5 rounded text-[10px]" title="Under 2.5">U: {d.odds.under25.toFixed(2)}</span>}
+                                  </div>
+                                ) : '-'}
+                              </td>
+                              <td>
+                                {d.rawStats?.last5 ? (
+                                  <div className="flex flex-col gap-1 text-[9px] font-mono leading-none tracking-widest text-muted-foreground">
+                                    <span>H: {d.rawStats.last5.home || 'N/A'}</span>
+                                    <span>A: {d.rawStats.last5.away || 'N/A'}</span>
+                                  </div>
+                                ) : '-'}
                               </td>
                             </tr>
                           ))}
