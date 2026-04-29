@@ -104,13 +104,20 @@ export default function AdminPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await fetch('/api/admin/config', {
+      const res = await fetch('/api/admin/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),
       });
+      const data = await res.json();
+      if (data.success && data.config) {
+        // Update local state with the verified-saved config from DB
+        setConfig(data.config);
+      }
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
+    } catch (e) {
+      console.error('Save failed:', e);
     } finally {
       setSaving(false);
     }

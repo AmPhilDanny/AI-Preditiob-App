@@ -38,7 +38,37 @@ class ConfigService {
       const config = await prisma.systemConfig.findFirst();
       
       if (!config) {
-        return this.getDefaultConfig();
+        // No config in DB yet — create the default row so saves work correctly
+        const defaults = this.getDefaultConfig();
+        try {
+          await prisma.systemConfig.create({
+            data: {
+              id: 'default',
+              scrapingUrls: defaults.scrapingUrls,
+              footballApiKey1: defaults.footballApis.api1.apiKey,
+              footballApi1Enabled: defaults.footballApis.api1.enabled,
+              footballApiKey2: defaults.footballApis.api2.apiKey,
+              footballApi2Enabled: defaults.footballApis.api2.enabled,
+              footballApiKey3: defaults.footballApis.api3.apiKey,
+              footballApi3Enabled: defaults.footballApis.api3.enabled,
+              footballApiKey4: defaults.footballApis.api4.apiKey,
+              footballApi4Enabled: defaults.footballApis.api4.enabled,
+              geminiApiKey: defaults.aiProviders.gemini.apiKey,
+              geminiEnabled: defaults.aiProviders.gemini.enabled,
+              grokApiKey: defaults.aiProviders.grok.apiKey,
+              grokEnabled: defaults.aiProviders.grok.enabled,
+              mistralApiKey: defaults.aiProviders.mistral.apiKey,
+              mistralEnabled: defaults.aiProviders.mistral.enabled,
+              aiAnalysisEnabled: defaults.aiAnalysisEnabled,
+              predictionThreshold: defaults.predictionThreshold,
+              analystPrompt: defaults.agentPrompts.analyst,
+              scraperPrompt: defaults.agentPrompts.scraper,
+            }
+          });
+        } catch (createError) {
+          console.warn('Could not create default config row:', createError);
+        }
+        return defaults;
       }
 
       return {
@@ -69,7 +99,28 @@ class ConfigService {
 
   async updateConfig(updates: Partial<SystemConfig>) {
     const current = await this.getConfig();
-    const merged = { ...current, ...updates };
+
+    // Deep merge nested objects to avoid wiping existing keys
+    const merged: SystemConfig = {
+      ...current,
+      ...updates,
+      footballApis: {
+        api1: { ...current.footballApis.api1, ...updates.footballApis?.api1 },
+        api2: { ...current.footballApis.api2, ...updates.footballApis?.api2 },
+        api3: { ...current.footballApis.api3, ...updates.footballApis?.api3 },
+        api4: { ...current.footballApis.api4, ...updates.footballApis?.api4 },
+      },
+      aiProviders: {
+        gemini:  { ...current.aiProviders.gemini,  ...updates.aiProviders?.gemini },
+        grok:    { ...current.aiProviders.grok,    ...updates.aiProviders?.grok },
+        mistral: { ...current.aiProviders.mistral, ...updates.aiProviders?.mistral },
+      },
+      agentPrompts: {
+        analyst: updates.agentPrompts?.analyst ?? current.agentPrompts.analyst,
+        scraper: updates.agentPrompts?.scraper ?? current.agentPrompts.scraper,
+      },
+      scrapingUrls: updates.scrapingUrls ?? current.scrapingUrls,
+    };
 
     return prisma.systemConfig.upsert({
       where: { id: 'default' },
