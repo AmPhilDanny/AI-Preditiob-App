@@ -1,13 +1,34 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const data = await prisma.scrapedData.findMany({
-      orderBy: { matchDate: 'desc' },
-      take: 50
+    const { searchParams } = new URL(req.url);
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = 50;
+    const skip = (page - 1) * limit;
+
+    const [data, totalCount] = await Promise.all([
+      prisma.scrapedData.findMany({
+        orderBy: { matchDate: 'desc' },
+        skip,
+        take: limit
+      }),
+      prisma.scrapedData.count()
+    ]);
+
+    const totalPages = Math.ceil(totalCount / limit);
+
+    return NextResponse.json({ 
+      success: true, 
+      data, 
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages
+      }
     });
-    return NextResponse.json({ success: true, data });
   } catch (error) {
     console.error('Error fetching scraped data:', error);
     return NextResponse.json({ error: 'Failed to fetch scraped data' }, { status: 500 });

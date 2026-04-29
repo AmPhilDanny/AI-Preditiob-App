@@ -77,19 +77,26 @@ export default function AdminPage() {
     return () => clearInterval(t);
   }, [load]);
 
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
   /* ── Load Scraped Data ─────────────────────────────────────── */
-  const loadScrapedData = async () => {
+  const loadScrapedData = async (pageNum = page) => {
     try {
-      const res = await fetch('/api/admin/scraped-data');
+      const res = await fetch(`/api/admin/scraped-data?page=${pageNum}`);
       const json = await res.json();
-      if (json.success) setScrapedData(json.data);
+      if (json.success) {
+        setScrapedData(json.data);
+        setPage(json.pagination.page);
+        setTotalPages(json.pagination.totalPages);
+      }
     } catch (e) {
       console.error(e);
     }
   };
 
   useEffect(() => {
-    if (active === 'data') loadScrapedData();
+    if (active === 'data') loadScrapedData(1);
   }, [active]);
 
   /* ── Trigger Scraper ─────────────────────────────────────── */
@@ -145,17 +152,6 @@ export default function AdminPage() {
 
   const [sourceStatuses, setSourceStatuses] = useState<Record<string, any>>({});
   const [isScrapingTarget, setIsScrapingTarget] = useState<string | null>(null);
-
-  /* ── Load Scraped Data ─────────────────────────────────────── */
-  const loadScrapedData = async () => {
-    try {
-      const res = await fetch('/api/admin/scraped-data');
-      const json = await res.json();
-      if (json.success) setScrapedData(json.data);
-    } catch (e) {
-      console.error(e);
-    }
-  };
 
   /* ── Targeted Scraping ─────────────────────────────────────── */
   const loadStatuses = async () => {
@@ -750,6 +746,31 @@ export default function AdminPage() {
                           ))}
                         </tbody>
                       </table>
+                      
+                      {/* Pagination Controls */}
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-secondary/10">
+                          <span className="text-xs text-muted-foreground">
+                            Showing page {page} of {totalPages}
+                          </span>
+                          <div className="flex gap-2">
+                            <button 
+                              className="btn-outline text-xs px-3 py-1"
+                              disabled={page <= 1}
+                              onClick={() => loadScrapedData(page - 1)}
+                            >
+                              Previous
+                            </button>
+                            <button 
+                              className="btn-outline text-xs px-3 py-1"
+                              disabled={page >= totalPages}
+                              onClick={() => loadScrapedData(page + 1)}
+                            >
+                              Next
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="px-6 py-12 text-center text-muted-foreground text-sm">
