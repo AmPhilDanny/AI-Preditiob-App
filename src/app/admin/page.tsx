@@ -143,6 +143,31 @@ export default function AdminPage() {
     }
   };
 
+  const [sourceStatuses, setSourceStatuses] = useState<Record<string, any>>({});
+  const [isScrapingTarget, setIsScrapingTarget] = useState<string | null>(null);
+
+  /* ── Load Scraped Data ─────────────────────────────────────── */
+  const loadScrapedData = async () => {
+    try {
+      const res = await fetch('/api/admin/scraped-data');
+      const json = await res.json();
+      if (json.success) setScrapedData(json.data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  /* ── Targeted Scraping ─────────────────────────────────────── */
+  const loadStatuses = async () => {
+    try {
+      const res = await fetch('/api/admin/sources/status');
+      const json = await res.json();
+      if (json.success) setSourceStatuses(json.statuses);
+    } catch (e) {
+      console.error('Failed to load statuses:', e);
+    }
+  };
+
   /* ── Load Processed Data ─────────────────────────────────────── */
   const loadProcessedData = async () => {
     try {
@@ -154,8 +179,33 @@ export default function AdminPage() {
     }
   };
 
+  const triggerTargetedScrape = async (type: 'api' | 'web', target: string) => {
+    setIsScrapingTarget(target);
+    try {
+      const res = await fetch('/api/cron/scrape', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, target })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`Successfully scraped ${data.count} records from ${target}`);
+        loadScrapedData();
+      } else {
+        alert(`Scraping failed: ${data.error}`);
+      }
+    } catch (e) {
+      console.error('Failed to trigger targeted scrape:', e);
+    } finally {
+      setIsScrapingTarget(null);
+    }
+  };
+
   useEffect(() => {
-    if (active === 'data') loadScrapedData();
+    if (active === 'data') {
+      loadScrapedData();
+      loadStatuses();
+    }
     if (active === 'processor') loadProcessedData();
   }, [active]);
   const handleSave = async () => {
@@ -547,6 +597,91 @@ export default function AdminPage() {
             {/* ── Data Viewer ──────────────────────────────────────── */}
             {active === 'data' && (
               <motion.div key="data" variants={fadeIn} initial="hidden" animate="show" exit="hidden" className="space-y-6">
+                {/* ── Targeted Scraper Command Center ───────────────────── */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="card-base p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-semibold text-sm text-foreground flex items-center gap-2">
+                        <Database size={16} className="text-cyan-500" /> API Sources
+                      </h3>
+                      <button className="btn-icon" onClick={loadStatuses} title="Refresh Statuses">
+                        <RefreshCcw size={14} />
+                      </button>
+                    </div>
+                    <div className="space-y-3">
+                      {['api-sports.io', 'football-data.org', 'thesportsdb.com', 'apifootball.com'].map(apiName => {
+                        const s = sourceStatuses[apiName] || { status: 'unknown' };
+                        const isConnected = s.status === 'connected';
+                        const isDisabled = s.status === 'disabled';
+                        
+                        return (
+                          <div key={apiName} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border">
+                            <div className="flex items-center gap-3">
+                              <span className={isConnected ? 'dot-online' : isDisabled ? 'dot-idle' : 'dot-busy'} />
+                              <div>
+                                <p className="text-sm font-medium text-foreground">{apiName}</p>
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                                  {s.status} {s.latency ? `(${s.latency}ms)` : ''}
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              className="btn-primary text-xs px-3 py-1.5"
+                              disabled={isDisabled || isScrapingTarget === apiName}
+                              onClick={() => triggerTargetedScrape('api', apiName)}
+                            >
+                              {isScrapingTarget === apiName ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
+                              Fetch
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="card-base p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-semibold text-sm text-foreground flex items-center gap-2">
+                        <Globe size={16} className="text-cyan-500" /> Web Crawl Targets
+                      </h3>
+                    </div>
+                    <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+                      {config?.scrapingUrls?.length > 0 ? (
+                        config.scrapingUrls.map((url: string) => {
+                          const s = sourceStatuses[url] || { status: 'unknown' };
+                          const isConnected = s.status === 'connected';
+                          
+                          return (
+                            <div key={url} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border">
+                              <div className="flex items-center gap-3 flex-1 min-w-0 pr-4">
+                                <span className={isConnected ? 'dot-online' : 'dot-idle'} />
+                                <div className="truncate">
+                                  <p className="text-sm font-mono text-foreground truncate">{url}</p>
+                                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                                    {s.status} {s.latency ? `(${s.latency}ms)` : ''}
+                                  </p>
+                                </div>
+                              </div>
+                              <button
+                                className="btn-primary text-xs px-3 py-1.5 shrink-0"
+                                disabled={isScrapingTarget === url}
+                                onClick={() => triggerTargetedScrape('web', url)}
+                              >
+                                {isScrapingTarget === url ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
+                                Crawl
+                              </button>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="text-center text-sm text-muted-foreground py-8">
+                          No URLs configured. Add them in the 'Scraping Config' tab.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 <div className="card-base overflow-hidden">
                   <div className="px-6 py-4 border-b border-border flex items-center justify-between">
                     <h3 className="font-semibold text-sm text-foreground flex items-center gap-2">
@@ -554,15 +689,8 @@ export default function AdminPage() {
                       {scrapedData.length > 0 && <span className="badge badge-purple">{scrapedData.length} records</span>}
                     </h3>
                     <div className="flex items-center gap-2">
-                      <button 
-                        className="btn-primary text-xs px-3 py-1.5" 
-                        onClick={triggerScraping}
-                        disabled={isScraping}
-                      >
-                        {isScraping ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
-                        Run Scraper
-                      </button>
-                      <button className="btn-icon" onClick={loadScrapedData}>
+                      {/* Old generic run button removed, relying on targeted buttons now */}
+                      <button className="btn-icon" onClick={loadScrapedData} title="Refresh Data">
                         <RefreshCcw size={14} />
                       </button>
                     </div>

@@ -50,6 +50,107 @@ export class ScraperAgent {
     return services;
   }
 
+  async fetchTargetedApi(apiName: string): Promise<MatchData[]> {
+    const apiServices = await this.getActiveApiServices();
+    const targetService = apiServices.find(s => s.name === apiName);
+    
+    if (!targetService) {
+      throw new Error(`API Service ${apiName} is not enabled or not found.`);
+    }
+
+    console.log(`[SCRAPER] Targeted fetch for API: ${apiName}...`);
+    try {
+      const fixtures = await targetService.service.getTodayFixtures(3);
+      console.log(`[SCRAPER] ${apiName} returned ${fixtures.length} fixtures.`);
+      
+      const mappedFixtures = this.processApiData(fixtures, apiName);
+      await this.saveToDb(mappedFixtures, apiName);
+      return mappedFixtures;
+    } catch (err) {
+      console.error(`[SCRAPER] Targeted API fetch failed for ${apiName}:`, err);
+      throw err;
+    }
+  }
+
+  async fetchTargetedWeb(url: string): Promise<MatchData[]> {
+    console.log(`[SCRAPER] Targeted crawl for URL: ${url}...`);
+    try {
+      const config = await configService.getConfig();
+      const webMatches: MatchData[] = [];
+      
+      const response = await axios.get(url, { timeout: 10000 });
+      const html = response.data;
+      const $ = cheerio.load(html);
+      
+      $('script, style, nav, footer').remove();
+      const cleanContent = $('body').text().replace(/\s+/g, ' ').trim().substring(0, 5000);
+
+      const aiConfig: AIConfig = {
+        provider: 'gemini',
+        apiKey: config.aiProviders.gemini.apiKey,
+        model: 'gemini-1.5-flash',
+        systemPrompt: config.agentPrompts.scraper
+      };
+      
+      const ai = new AIFactory(aiConfig);
+      const extracted = await ai.extractFromHtml(cleanContent);
+      
+      console.log(`[SCRAPER] AI extracted ${extracted.length} matches from ${url}`);
+      
+      extracted.forEach(m => {
+        webMatches.push({
+          homeTeam: m.match.split(' vs ')[0] || 'Unknown',
+          awayTeam: m.match.split(' vs ')[1] || 'Unknown',
+          league: 'Web Scraped',
+          odds: { home: m.odds || 2.0, draw: 3.0, away: 3.0 },
+          sourceType: 'web',
+          apiStats: { url, reasoning: m.reasoning }
+        });
+      });
+      
+      await this.saveToDb(webMatches, 'web-crawler');
+      return webMatches;
+    } catch (err) {
+      console.error(`[SCRAPER] Targeted crawl failed for ${url}:`, err);
+      throw err;
+    }
+  }
+
+  private processApiData(fixtures: NormalizedFixture[], name: string): MatchData[] {
+    return fixtures.map(f => {
+      const raw = f.rawData || {};
+      let home = 2.0, draw = 3.0, away = 3.0, btts = 1.9, over = 1.8, under = 1.8;
+
+      if (raw.odd_1) home = parseFloat(raw.odd_1);
+      else if (raw.prob_HW) home = parseFloat((100 / parseFloat(raw.prob_HW)).toFixed(2));
+
+      if (raw.odd_x) draw = parseFloat(raw.odd_x);
+      else if (raw.prob_D) draw = parseFloat((100 / parseFloat(raw.prob_D)).toFixed(2));
+
+      if (raw.odd_2) away = parseFloat(raw.odd_2);
+      else if (raw.prob_AW) away = parseFloat((100 / parseFloat(raw.prob_AW)).toFixed(2));
+
+      if (raw.prob_btts) btts = parseFloat((100 / parseFloat(raw.prob_btts)).toFixed(2));
+      if (raw.prob_O) over = parseFloat((100 / parseFloat(raw.prob_O)).toFixed(2));
+      if (raw.prob_U) under = parseFloat((100 / parseFloat(raw.prob_U)).toFixed(2));
+
+      return {
+        id: f.externalId,
+        homeTeam: f.homeTeam,
+        awayTeam: f.awayTeam,
+        league: f.league,
+        odds: { home, draw, away, btts, over25: over, under25: under },
+        apiStats: { 
+          source: name, 
+          ...f.stats, 
+          last5: f.stats?.last5 || { home: raw.match_hometeam_system || 'N/A', away: raw.match_awayteam_system || 'N/A' },
+          original: raw
+        },
+        sourceType: 'api'
+      };
+    });
+  }
+
   async fetchHybridData(): Promise<MatchData[]> {
     const apiServices = await this.getActiveApiServices();
     console.log(`[SCRAPER] Starting hybrid fetch from ${apiServices.length} active APIs...`);
@@ -60,49 +161,13 @@ export class ScraperAgent {
     for (const { name, service } of apiServices) {
       try {
         console.log(`[SCRAPER] Processing API: ${name}...`);
-        // Get data for next 3 days to "losen up" the window
         const fixtures = await service.getTodayFixtures(3);
         console.log(`[SCRAPER] ${name} returned ${fixtures.length} fixtures.`);
         
-        const mappedFixtures: MatchData[] = fixtures.map(f => {
-          // Attempt to extract real odds from raw data, fallback to probability conversion or default
-          const raw = f.rawData || {};
-          let home = 2.0, draw = 3.0, away = 3.0, btts = 1.9, over = 1.8, under = 1.8;
-
-          if (raw.odd_1) home = parseFloat(raw.odd_1);
-          else if (raw.prob_HW) home = parseFloat((100 / parseFloat(raw.prob_HW)).toFixed(2));
-
-          if (raw.odd_x) draw = parseFloat(raw.odd_x);
-          else if (raw.prob_D) draw = parseFloat((100 / parseFloat(raw.prob_D)).toFixed(2));
-
-          if (raw.odd_2) away = parseFloat(raw.odd_2);
-          else if (raw.prob_AW) away = parseFloat((100 / parseFloat(raw.prob_AW)).toFixed(2));
-
-          if (raw.prob_btts) btts = parseFloat((100 / parseFloat(raw.prob_btts)).toFixed(2));
-          if (raw.prob_O) over = parseFloat((100 / parseFloat(raw.prob_O)).toFixed(2));
-          if (raw.prob_U) under = parseFloat((100 / parseFloat(raw.prob_U)).toFixed(2));
-
-          return {
-            id: f.externalId,
-            homeTeam: f.homeTeam,
-            awayTeam: f.awayTeam,
-            league: f.league,
-            odds: { home, draw, away, btts, over25: over, under25: under },
-            // Merge normalized stats and raw data for full storage
-            apiStats: { 
-              source: name, 
-              ...f.stats, 
-              last5: f.stats?.last5 || { home: raw.match_hometeam_system || 'N/A', away: raw.match_awayteam_system || 'N/A' },
-              original: raw
-            },
-            sourceType: 'api'
-          };
-        });
-        
+        const mappedFixtures = this.processApiData(fixtures, name);
         allFixtures.push(...mappedFixtures);
         await this.saveToDb(mappedFixtures, name);
         
-        // Wait 2 seconds between APIs to avoid rate limits
         await new Promise(resolve => setTimeout(resolve, 2000));
       } catch (err) {
         console.error(`[SCRAPER] Football API fetch failed for ${name}:`, err);
@@ -110,10 +175,15 @@ export class ScraperAgent {
     }
 
     // 2. Crawl all configured websites sequentially
-    const webData = await this.crawlWebsites();
-    allFixtures.push(...webData);
-    if (webData.length > 0) {
-      await this.saveToDb(webData, 'web-crawler');
+    const config = await configService.getConfig();
+    const urls = config.scrapingUrls || [];
+    for (const url of urls) {
+      try {
+        const webData = await this.fetchTargetedWeb(url);
+        allFixtures.push(...webData);
+      } catch (e) {
+        console.error(`[SCRAPER] Skip ${url} due to error`);
+      }
     }
 
     // Fallback data if everything fails
@@ -132,54 +202,6 @@ export class ScraperAgent {
 
     await this.deleteOldData();
     return allFixtures;
-  }
-
-  private async crawlWebsites(): Promise<MatchData[]> {
-    const config = await configService.getConfig();
-    const urls = config.scrapingUrls || [];
-    const webMatches: MatchData[] = [];
-
-    console.log(`Crawling ${urls.length} configured websites...`);
-
-    for (const url of urls) {
-      try {
-        const response = await axios.get(url, { timeout: 10000 });
-        const html = response.data;
-        const $ = cheerio.load(html);
-        
-        // Clean up HTML to reduce token usage for AI
-        $('script, style, nav, footer').remove();
-        const cleanContent = $('body').text().replace(/\s+/g, ' ').trim().substring(0, 5000);
-
-        // Use AI to extract matches from the page content
-        const aiConfig: AIConfig = {
-          provider: 'gemini',
-          apiKey: config.aiProviders.gemini.apiKey,
-          model: 'gemini-1.5-flash',
-          systemPrompt: config.agentPrompts.scraper
-        };
-        
-        const ai = new AIFactory(aiConfig);
-        const extracted = await ai.extractFromHtml(cleanContent);
-        
-        console.log(`AI extracted ${extracted.length} matches from ${url}`);
-        
-        extracted.forEach(m => {
-          webMatches.push({
-            homeTeam: m.match.split(' vs ')[0] || 'Unknown',
-            awayTeam: m.match.split(' vs ')[1] || 'Unknown',
-            league: 'Web Scraped',
-            odds: { home: m.odds || 2.0, draw: 3.0, away: 3.0 },
-            sourceType: 'web',
-            apiStats: { url, reasoning: m.reasoning }
-          });
-        });
-      } catch (err) {
-        console.error(`Failed to crawl ${url}:`, err);
-      }
-    }
-
-    return webMatches;
   }
 
   private async saveToDb(matches: MatchData[], source: string) {
