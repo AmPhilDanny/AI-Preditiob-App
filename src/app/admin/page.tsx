@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import { formatToWAT } from '@/lib/utils/time';
 import {
   Cpu, Terminal, Globe, Lock, Database, Shield,
   CheckCircle, RefreshCcw, Plus, Trash2, Eye, EyeOff,
@@ -583,7 +584,7 @@ export default function AdminPage() {
                           {scrapedData.map(d => (
                             <tr key={d.id}>
                               <td className="text-muted-foreground whitespace-nowrap">
-                                {new Date(d.createdAt).toLocaleString()}
+                                {formatToWAT(d.createdAt)}
                               </td>
                               <td><span className="badge badge-gray">{d.sourceApi}</span></td>
                               <td className="font-medium text-foreground">{d.homeTeam} vs {d.awayTeam}</td>
@@ -657,7 +658,7 @@ export default function AdminPage() {
                           {processedData.map(d => (
                             <tr key={d.id}>
                               <td className="text-muted-foreground whitespace-nowrap">
-                                {new Date(d.createdAt).toLocaleString()}
+                                {formatToWAT(d.createdAt)}
                               </td>
                               <td className="font-medium text-foreground">{d.summary}</td>
                               <td>
@@ -712,7 +713,7 @@ export default function AdminPage() {
                           {history.map(slip => (
                             <tr key={slip.id}>
                               <td className="text-xs font-mono text-muted-foreground whitespace-nowrap">
-                                {new Date(slip.createdAt).toLocaleString()}
+                                {formatToWAT(slip.createdAt)}
                               </td>
                               <td>
                                 <span className="badge badge-purple">{slip.targetOdds}×</span>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { formatToWAT } from '@/lib/utils/time';
 import {
   RefreshCcw, Zap, Brain, Target, Activity, Shield,
   AlertTriangle, ArrowRight, ChevronRight, TrendingUp,
@@ -43,6 +44,11 @@ export default function HomePage() {
     analyst:   { status: 'idle', lastRun: null as string | null },
     validator: { status: 'idle', lastRun: null as string | null },
     health:    { status: 'online', lastRun: new Date().toISOString() },
+  });
+
+  const [storage, setStorage] = useState({
+    hasScraped: false,
+    hasProcessed: false
   });
 
   const scrollToBottom = () => {
@@ -131,9 +137,21 @@ export default function HomePage() {
   useEffect(() => { 
     // Initial fetch for background stats
     fetch('/api/admin/health').then(r => r.json()).then(h => {
-      if (h) setAgents(prev => ({ ...prev, health: { status: 'online', lastRun: new Date().toISOString() } }));
+      if (h) {
+        setAgents(prev => ({ ...prev, health: { status: 'online', lastRun: new Date().toISOString() } }));
+        if (h.storage) setStorage({ hasScraped: h.storage.hasScraped, hasProcessed: h.storage.hasProcessed });
+      }
     });
+
+    // Poll health/storage every 30s
+    const t = setInterval(() => {
+      fetch('/api/admin/health').then(r => r.json()).then(h => {
+        if (h?.storage) setStorage({ hasScraped: h.storage.hasScraped, hasProcessed: h.storage.hasProcessed });
+      });
+    }, 30000);
+
     setLoading(false); 
+    return () => clearInterval(t);
   }, []);
 
   const agentCards = [
@@ -296,8 +314,13 @@ export default function HomePage() {
                 <div className={`p-2 rounded-lg ${agent.bg} ${agent.color}`}>
                   <agent.icon size={18} />
                 </div>
-                {isSuccess && <Check size={16} className="text-emerald-500 animate-in zoom-in duration-300" />}
-                {isRunning && <Loader2 size={16} className="text-primary animate-spin" />}
+                <div className="flex items-center gap-2">
+                  {((agent.id === 'scraper' && storage.hasScraped) || (agent.id === 'processor' && storage.hasProcessed)) && (
+                    <span className="flex h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse" title="Active Data Stored" />
+                  )}
+                  {isSuccess && <Check size={16} className="text-emerald-500 animate-in zoom-in duration-300" />}
+                  {isRunning && <Loader2 size={16} className="text-primary animate-spin" />}
+                </div>
               </div>
 
               <h4 className="text-xs font-bold text-foreground mb-1">{agent.name}</h4>
@@ -455,8 +478,8 @@ export default function HomePage() {
           AI predictions are for informational purposes only. Past performance does not guarantee
           future results. Please gamble responsibly.
         </p>
-        <p className="text-xs text-muted-foreground/40 mt-6 font-mono">
-          Last sync: {data?.timestamp ? new Date(data.timestamp).toLocaleString() : 'N/A'}
+        <p className="text-xs text-muted-foreground/40 mt-6 font-mono uppercase tracking-widest">
+          Sync Time (WAT): {data?.timestamp ? formatToWAT(data.timestamp) : 'N/A'}
         </p>
       </footer>
     </div>
