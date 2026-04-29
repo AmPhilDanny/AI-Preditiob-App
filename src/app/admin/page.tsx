@@ -15,6 +15,7 @@ const TABS = [
   { id: 'prompts',  label: 'Prompt Engine',   icon: Terminal },
   { id: 'scraping', label: 'Crawl Routes',    icon: Globe },
   { id: 'data',     label: 'Data Viewer',     icon: Database },
+  { id: 'processor', label: 'Intelligence',   icon: Brain },
   { id: 'history',  label: 'Prediction Logs', icon: History },
   { id: 'security', label: 'Vault',           icon: Lock },
 ];
@@ -39,8 +40,11 @@ export default function AdminPage() {
   const [history,  setHistory]  = useState<any[]>([]);
   const [health,   setHealth]   = useState<any>(null);
   const [scrapedData, setScrapedData] = useState<any[]>([]);
+  const [processedData, setProcessedData] = useState<any[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [isScraping, setIsScraping] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isCleaning, setIsCleaning] = useState(false);
   const [saving,   setSaving]   = useState(false);
   const [saved,    setSaved]    = useState(false);
   const [showKey,  setShowKey]  = useState<Record<string, boolean>>({});
@@ -99,8 +103,60 @@ export default function AdminPage() {
       setIsScraping(false);
     }
   };
+  
+  /* ── Trigger Processor ───────────────────────────────────── */
+  const triggerProcessing = async () => {
+    setIsProcessing(true);
+    try {
+      const res = await fetch('/api/admin/process', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        alert(`Successfully processed ${data.count} records.`);
+        if (active === 'processor') loadProcessedData();
+      } else {
+        alert(`Processing failed: ${data.error}`);
+      }
+    } catch (e) {
+      console.error('Failed to trigger processor:', e);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
-  /* ── Save config ─────────────────────────────────────────── */
+  /* ── Clean Old Data ──────────────────────────────────────── */
+  const cleanOldData = async () => {
+    if (!confirm('Are you sure you want to delete all data older than 10 days?')) return;
+    setIsCleaning(true);
+    try {
+      const res = await fetch('/api/admin/process', { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        alert(`Cleanup successful: Removed ${data.result.scraped} scraped and ${data.result.processed} processed records.`);
+        loadScrapedData();
+        loadProcessedData();
+      }
+    } catch (e) {
+      console.error('Cleanup failed:', e);
+    } finally {
+      setIsCleaning(false);
+    }
+  };
+
+  /* ── Load Processed Data ─────────────────────────────────────── */
+  const loadProcessedData = async () => {
+    try {
+      const res = await fetch('/api/admin/processed-data');
+      const json = await res.json();
+      if (json.success) setProcessedData(json.data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    if (active === 'data') loadScrapedData();
+    if (active === 'processor') loadProcessedData();
+  }, [active]);
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -184,6 +240,7 @@ export default function AdminPage() {
 
   const agents = [
     { name: 'Scraper Agent',   icon: Globe,        status: health?.status === 'healthy' ? 'online' : 'offline', load: '12%', color: 'text-cyan-500',    bg: 'bg-cyan-500/10' },
+    { name: 'Processor Agent', icon: Brain,        status: isProcessing ? 'busy' : 'online', load: '28%', color: 'text-amber-500',   bg: 'bg-amber-500/10' },
     { name: 'Analyst Agent',   icon: Terminal,      status: health?.status === 'healthy' ? 'online' : 'offline', load: '45%', color: 'text-violet-500',  bg: 'bg-violet-500/10' },
     { name: 'Validator Agent', icon: CheckCircle,   status: 'idle',    load: '0%',  color: 'text-muted-foreground', bg: 'bg-secondary' },
     { name: 'Health Agent',    icon: Shield,        status: 'online',  load: '5%',  color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
@@ -285,6 +342,7 @@ export default function AdminPage() {
                         <div className="flex items-center gap-1.5 mt-1">
                           <span className={
                             status === 'online' ? 'dot-online' :
+                            status === 'busy'   ? 'dot-busy'   :
                             status === 'idle'   ? 'dot-idle'   : 'dot-offline'
                           } />
                           <span className="text-xs text-muted-foreground capitalize">{status}</span>
@@ -419,6 +477,19 @@ export default function AdminPage() {
                         placeholder="Define how the scraper agent filters and normalises data…"
                       />
                     </div>
+                    <div>
+                      <label className="section-label block mb-2">Processor Logic</label>
+                      <textarea
+                        rows={4}
+                        className="form-textarea"
+                        value={config?.agentPrompts?.processor || ''}
+                        onChange={e => setConfig({
+                          ...config,
+                          agentPrompts: { ...config.agentPrompts, processor: e.target.value }
+                        })}
+                        placeholder="Define how the processor agent organizes and sorts match data…"
+                      />
+                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -534,6 +605,74 @@ export default function AdminPage() {
                   ) : (
                     <div className="px-6 py-12 text-center text-muted-foreground text-sm">
                       No scraped data found in database. The scraper agent will collect data automatically.
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
+            {/* ── Intelligence Processor ────────────────────────── */}
+            {active === 'processor' && (
+              <motion.div key="processor" variants={fadeIn} initial="hidden" animate="show" exit="hidden" className="space-y-6">
+                <div className="card-base overflow-hidden">
+                  <div className="px-6 py-4 border-b border-border flex items-center justify-between">
+                    <h3 className="font-semibold text-sm text-foreground flex items-center gap-2">
+                      <Brain size={16} className="text-amber-500" /> Intelligence Storage
+                      {processedData.length > 0 && <span className="badge badge-purple">{processedData.length} entries</span>}
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        className="btn-primary text-xs px-3 py-1.5" 
+                        onClick={triggerProcessing}
+                        disabled={isProcessing}
+                      >
+                        {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+                        Run Processor
+                      </button>
+                      <button 
+                        className="btn-ghost text-xs px-3 py-1.5 text-destructive hover:bg-destructive/10" 
+                        onClick={cleanOldData}
+                        disabled={isCleaning}
+                      >
+                        {isCleaning ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                        Clean Old Data
+                      </button>
+                      <button className="btn-icon" onClick={loadProcessedData}>
+                        <RefreshCcw size={14} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {processedData.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="data-table text-xs">
+                        <thead>
+                          <tr>
+                            <th>Processed At</th>
+                            <th>Summary</th>
+                            <th>Items</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {processedData.map(d => (
+                            <tr key={d.id}>
+                              <td className="text-muted-foreground whitespace-nowrap">
+                                {new Date(d.createdAt).toLocaleString()}
+                              </td>
+                              <td className="font-medium text-foreground">{d.summary}</td>
+                              <td>
+                                <span className="badge badge-gray">
+                                  {Array.isArray(d.structuredData) ? d.structuredData.length : 'Object'}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="px-6 py-12 text-center text-muted-foreground text-sm">
+                      No processed intelligence found. Run the Processor Agent to organize raw scraped data.
                     </div>
                   )}
                 </div>

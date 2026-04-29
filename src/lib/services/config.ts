@@ -18,6 +18,7 @@ export interface SystemConfig {
   agentPrompts: {
     analyst: string;
     scraper: string;
+    processor: string;
   };
 }
 
@@ -63,6 +64,7 @@ class ConfigService {
               predictionThreshold: defaults.predictionThreshold,
               analystPrompt: defaults.agentPrompts.analyst,
               scraperPrompt: defaults.agentPrompts.scraper,
+              processorPrompt: defaults.agentPrompts.processor,
             }
           });
         } catch (createError) {
@@ -89,6 +91,7 @@ class ConfigService {
         agentPrompts: {
           analyst: config.analystPrompt || '',
           scraper: config.scraperPrompt || '',
+          processor: config.processorPrompt || '',
         }
       };
     } catch (error) {
@@ -118,6 +121,7 @@ class ConfigService {
       agentPrompts: {
         analyst: updates.agentPrompts?.analyst ?? current.agentPrompts.analyst,
         scraper: updates.agentPrompts?.scraper ?? current.agentPrompts.scraper,
+        processor: updates.agentPrompts?.processor ?? current.agentPrompts.processor,
       },
       scrapingUrls: updates.scrapingUrls ?? current.scrapingUrls,
     };
@@ -144,6 +148,7 @@ class ConfigService {
         predictionThreshold: merged.predictionThreshold,
         analystPrompt: merged.agentPrompts.analyst,
         scraperPrompt: merged.agentPrompts.scraper,
+        processorPrompt: merged.agentPrompts.processor,
       },
       create: {
         id: 'default',
@@ -166,6 +171,7 @@ class ConfigService {
         predictionThreshold: merged.predictionThreshold,
         analystPrompt: merged.agentPrompts.analyst,
         scraperPrompt: merged.agentPrompts.scraper,
+        processorPrompt: merged.agentPrompts.processor,
       },
     });
   }
@@ -188,7 +194,8 @@ class ConfigService {
       predictionThreshold: 75,
       agentPrompts: {
         analyst: 'You are a professional football betting analyst...',
-        scraper: 'Filter for today matches only...'
+        scraper: 'Filter for today matches only...',
+        processor: 'You are an expert data processor. Your job is to take raw match data and organize it into a clean, structured format for analysis. Sort matches by league and time, and ensure all stats are normalized.'
       }
     };
   }

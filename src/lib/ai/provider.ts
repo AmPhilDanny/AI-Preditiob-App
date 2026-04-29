@@ -70,4 +70,18 @@ export class AIFactory {
       reasoning: "Mistral reasoning tailored to the specified analysis criteria."
     };
   }
+
+  async process(data: any, userPrompt?: string): Promise<any> {
+    const prompt = this.config.systemPrompt || "Process this data.";
+    const fullPrompt = userPrompt ? `${prompt}\n\nUser Request: ${userPrompt}` : prompt;
+    
+    // For now, simulating AI processing. In production, this would call the actual APIs.
+    console.log(`Processing with ${this.config.provider} using prompt: ${fullPrompt.substring(0, 50)}...`);
+    
+    return {
+      summary: `Processed ${Array.isArray(data) ? data.length : 1} items.`,
+      structuredData: data,
+      success: true
+    };
+  }
 }
