@@ -11,7 +11,7 @@ export class FootballDataService implements FootballApiService {
     this.apiKey = apiKey;
   }
 
-  private async fetchFromAPI(endpoint: string) {
+  private async fetchFromAPI(endpoint: string): Promise<any> {
     // 1. Wait if we are currently throttled
     const now = Date.now();
     if (now < FootballDataService.nextAllowedTime) {
