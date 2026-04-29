@@ -49,15 +49,16 @@ export class ScraperAgent {
 
   async fetchHybridData(): Promise<MatchData[]> {
     const apiServices = await this.getActiveApiServices();
-    console.log(`Gathering data from ${apiServices.length} active APIs...`);
+    console.log(`[SCRAPER] Starting hybrid fetch from ${apiServices.length} active APIs...`);
     
     let allFixtures: MatchData[] = [];
     
-    // 1. Fetch from all enabled APIs
+    // 1. Fetch from all enabled APIs sequentially with delay
     for (const { name, service } of apiServices) {
       try {
-        console.log(`[SCRAPER] Calling API Service: ${name}...`);
-        const fixtures = await service.getTodayFixtures();
+        console.log(`[SCRAPER] Processing API: ${name}...`);
+        // Get data for next 3 days to "losen up" the window
+        const fixtures = await service.getTodayFixtures(3);
         console.log(`[SCRAPER] ${name} returned ${fixtures.length} fixtures.`);
         
         const mappedFixtures: MatchData[] = fixtures.map(f => ({
@@ -70,18 +71,26 @@ export class ScraperAgent {
             draw: 2.0 + Math.random() * 2,
             away: 2.0 + Math.random() * 3
           },
-          apiStats: { source: name, ...f },
+          // Merge normalized stats and raw data for full storage
+          apiStats: { 
+            source: name, 
+            ...f.stats, 
+            original: f.rawData || f 
+          },
           sourceType: 'api'
         }));
         
         allFixtures.push(...mappedFixtures);
         await this.saveToDb(mappedFixtures, name);
+        
+        // Wait 2 seconds between APIs to avoid rate limits
+        await new Promise(resolve => setTimeout(resolve, 2000));
       } catch (err) {
         console.error(`[SCRAPER] Football API fetch failed for ${name}:`, err);
       }
     }
 
-    // 2. Crawl all configured websites
+    // 2. Crawl all configured websites sequentially
     const webData = await this.crawlWebsites();
     allFixtures.push(...webData);
     if (webData.length > 0) {

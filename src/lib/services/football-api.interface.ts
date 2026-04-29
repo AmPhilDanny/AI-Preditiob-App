@@ -4,9 +4,16 @@ export interface NormalizedFixture {
   league: string;
   date: string;
   externalId: string;
+  rawData?: any;
+  stats?: {
+    h2h?: any;
+    last5?: any;
+    bttsOdds?: number;
+    overUnder25?: number;
+  };
 }
 
 export interface FootballApiService {
-  getTodayFixtures(): Promise<NormalizedFixture[]>;
+  getTodayFixtures(daysAhead?: number): Promise<NormalizedFixture[]>;
   testConnection(): Promise<boolean>;
 }

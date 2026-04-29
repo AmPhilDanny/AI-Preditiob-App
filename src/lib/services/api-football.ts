@@ -27,16 +27,17 @@ export class APIFootballService implements FootballApiService {
     return response.json();
   }
 
-  async getTodayFixtures(): Promise<NormalizedFixture[]> {
+  async getTodayFixtures(daysAhead: number = 3): Promise<NormalizedFixture[]> {
     const today = new Date().toISOString().split('T')[0];
-    const data = await this.fetchFromAPI('fixtures', { date: today });
+    const data = await this.fetchFromAPI('fixtures', { date: today }); // This API usually only does 1 date per request
     
     return (data.response || []).map((f: any) => ({
       homeTeam: f.teams.home.name,
       awayTeam: f.teams.away.name,
       league: f.league.name,
       date: f.fixture.date,
-      externalId: f.fixture.id.toString()
+      externalId: f.fixture.id.toString(),
+      rawData: f
     }));
   }
 
