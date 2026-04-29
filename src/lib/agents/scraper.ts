@@ -43,6 +43,7 @@ export class ScraperAgent {
       services.push({ name: 'apifootball.com', service: new APIFootballDotComService(config.footballApis.api4.apiKey) });
     }
     
+    console.log(`[SCRAPER] Active APIs found in config: ${services.map(s => s.name).join(', ') || 'None'}`);
     return services;
   }
 
@@ -55,7 +56,10 @@ export class ScraperAgent {
     // 1. Fetch from all enabled APIs
     for (const { name, service } of apiServices) {
       try {
+        console.log(`[SCRAPER] Calling API Service: ${name}...`);
         const fixtures = await service.getTodayFixtures();
+        console.log(`[SCRAPER] ${name} returned ${fixtures.length} fixtures.`);
+        
         const mappedFixtures: MatchData[] = fixtures.map(f => ({
           id: f.externalId,
           homeTeam: f.homeTeam,
@@ -73,7 +77,7 @@ export class ScraperAgent {
         allFixtures.push(...mappedFixtures);
         await this.saveToDb(mappedFixtures, name);
       } catch (err) {
-        console.error(`Football API fetch failed for ${name}:`, err);
+        console.error(`[SCRAPER] Football API fetch failed for ${name}:`, err);
       }
     }
 
@@ -130,14 +134,16 @@ export class ScraperAgent {
         const ai = new AIFactory(aiConfig);
         const extracted = await ai.extractFromHtml(cleanContent);
         
+        console.log(`AI extracted ${extracted.length} matches from ${url}`);
+        
         extracted.forEach(m => {
           webMatches.push({
             homeTeam: m.match.split(' vs ')[0] || 'Unknown',
             awayTeam: m.match.split(' vs ')[1] || 'Unknown',
             league: 'Web Scraped',
-            odds: { home: m.odds, draw: 3.0, away: 3.0 },
+            odds: { home: m.odds || 2.0, draw: 3.0, away: 3.0 },
             sourceType: 'web',
-            apiStats: { url }
+            apiStats: { url, reasoning: m.reasoning }
           });
         });
       } catch (err) {
