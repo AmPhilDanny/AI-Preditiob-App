@@ -21,6 +21,8 @@ async function main() {
       footballApi2Enabled: false,
       footballApiKey3: '',
       footballApi3Enabled: false,
+      footballApiKey4: '',
+      footballApi4Enabled: false,
       geminiApiKey: '',
       geminiEnabled: true,
       grokApiKey: '',
@@ -28,7 +30,9 @@ async function main() {
       mistralApiKey: '',
       mistralEnabled: false,
       analystPrompt: "You are an expert football analyst. Your goal is to identify low-risk outcomes and combine them into high-value slips.",
-      scraperPrompt: "You are a master data gatherer. Focus on fetching real-time odds and team news."
+      scraperPrompt: "You are a master data gatherer. Focus on fetching real-time odds and team news.",
+      aiAnalysisEnabled: true,
+      predictionThreshold: 75
     }
   });
 
