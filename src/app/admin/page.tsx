@@ -40,6 +40,7 @@ export default function AdminPage() {
   const [health,   setHealth]   = useState<any>(null);
   const [scrapedData, setScrapedData] = useState<any[]>([]);
   const [loading,  setLoading]  = useState(true);
+  const [isScraping, setIsScraping] = useState(false);
   const [saving,   setSaving]   = useState(false);
   const [saved,    setSaved]    = useState(false);
   const [showKey,  setShowKey]  = useState<Record<string, boolean>>({});
@@ -85,6 +86,19 @@ export default function AdminPage() {
   useEffect(() => {
     if (active === 'data') loadScrapedData();
   }, [active]);
+
+  /* ── Trigger Scraper ─────────────────────────────────────── */
+  const triggerScraping = async () => {
+    setIsScraping(true);
+    try {
+      await fetch('/api/cron/scrape');
+      await loadScrapedData(); // refresh data after scraping
+    } catch (e) {
+      console.error('Failed to trigger scraper:', e);
+    } finally {
+      setIsScraping(false);
+    }
+  };
 
   /* ── Save config ─────────────────────────────────────────── */
   const handleSave = async () => {
@@ -456,9 +470,19 @@ export default function AdminPage() {
                       <Database size={16} className="text-cyan-500" /> Scraped Data Memory
                       {scrapedData.length > 0 && <span className="badge badge-purple">{scrapedData.length} records</span>}
                     </h3>
-                    <button className="btn-icon" onClick={loadScrapedData}>
-                      <RefreshCcw size={14} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        className="btn-primary text-xs px-3 py-1.5" 
+                        onClick={triggerScraping}
+                        disabled={isScraping}
+                      >
+                        {isScraping ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+                        Run Scraper
+                      </button>
+                      <button className="btn-icon" onClick={loadScrapedData}>
+                        <RefreshCcw size={14} />
+                      </button>
+                    </div>
                   </div>
 
                   {scrapedData.length > 0 ? (
