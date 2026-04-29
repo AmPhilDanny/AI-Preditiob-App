@@ -686,7 +686,7 @@ export default function AdminPage() {
                     </h3>
                     <div className="flex items-center gap-2">
                       {/* Old generic run button removed, relying on targeted buttons now */}
-                      <button className="btn-icon" onClick={loadScrapedData} title="Refresh Data">
+                      <button className="btn-icon" onClick={() => loadScrapedData()} title="Refresh Data">
                         <RefreshCcw size={14} />
                       </button>
                     </div>
