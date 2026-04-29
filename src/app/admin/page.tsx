@@ -8,7 +8,7 @@ import {
   Cpu, Terminal, Globe, Lock, Database, Shield,
   CheckCircle, RefreshCcw, Plus, Trash2, Eye, EyeOff,
   Zap, Activity, History, Server, LogOut, AlertTriangle,
-  Loader2, Play, Check, X, Brain
+  Loader2, Play, Check, X, Brain, Search
 } from 'lucide-react';
 
 const TABS = [
@@ -79,16 +79,19 @@ export default function AdminPage() {
 
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [pageInput, setPageInput] = useState('');
 
   /* ── Load Scraped Data ─────────────────────────────────────── */
-  const loadScrapedData = async (pageNum = page) => {
+  const loadScrapedData = async (pageNum = page, search = searchQuery) => {
     try {
-      const res = await fetch(`/api/admin/scraped-data?page=${pageNum}`);
+      const res = await fetch(`/api/admin/scraped-data?page=${pageNum}&search=${encodeURIComponent(search)}`);
       const json = await res.json();
       if (json.success) {
         setScrapedData(json.data);
         setPage(json.pagination.page);
         setTotalPages(json.pagination.totalPages);
+        setPageInput(json.pagination.page.toString());
       }
     } catch (e) {
       console.error(e);
@@ -684,8 +687,18 @@ export default function AdminPage() {
                       <Database size={16} className="text-cyan-500" /> Scraped Data Memory
                       {scrapedData.length > 0 && <span className="badge badge-purple">{scrapedData.length} records</span>}
                     </h3>
-                    <div className="flex items-center gap-2">
-                      {/* Old generic run button removed, relying on targeted buttons now */}
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <input
+                          type="text"
+                          placeholder="Search teams, league..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && loadScrapedData(1)}
+                          className="input-field pl-8 py-1.5 text-xs w-[200px]"
+                        />
+                      </div>
                       <button className="btn-icon" onClick={() => loadScrapedData()} title="Refresh Data">
                         <RefreshCcw size={14} />
                       </button>
@@ -761,6 +774,23 @@ export default function AdminPage() {
                             >
                               Previous
                             </button>
+                            <div className="flex items-center gap-1 mx-2">
+                              <span className="text-xs text-muted-foreground">Go to:</span>
+                              <input
+                                type="number"
+                                min="1"
+                                max={totalPages}
+                                value={pageInput}
+                                onChange={(e) => setPageInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    const p = parseInt(pageInput, 10);
+                                    if (p >= 1 && p <= totalPages) loadScrapedData(p);
+                                  }
+                                }}
+                                className="input-field py-1 px-2 text-xs w-[60px] text-center"
+                              />
+                            </div>
                             <button 
                               className="btn-outline text-xs px-3 py-1"
                               disabled={page >= totalPages}
