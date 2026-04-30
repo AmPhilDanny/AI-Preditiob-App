@@ -18,7 +18,7 @@ export class HealthAgent {
       dbStatus = 'offline';
     }
 
-    const { configService } = await import('./config');
+    const { configService } = await import('../services/config');
     const config = await configService.getConfig();
 
     return {
