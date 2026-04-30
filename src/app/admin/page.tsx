@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { formatToWAT } from '@/lib/utils/time';
 import {
   Cpu, Terminal, Globe, Lock, Database, Shield,
@@ -764,9 +766,11 @@ export default function AdminPage() {
                               {formatToWAT(processedData[0].createdAt)}
                             </span>
                           </div>
-                          <p className="text-sm text-foreground mt-1 font-medium leading-relaxed">
-                            {processedData[0].summary}
-                          </p>
+                          <div className="prose prose-sm dark:prose-invert max-w-none text-foreground prose-p:leading-relaxed prose-headings:font-bold prose-a:text-primary mt-2">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              {processedData[0].summary}
+                            </ReactMarkdown>
+                          </div>
                           <div className="mt-3 flex items-center gap-3">
                             <span className="badge badge-purple text-[10px]">
                               {Array.isArray(processedData[0].structuredData) ? processedData[0].structuredData.length : 0} Matches Analyzed
@@ -943,31 +947,24 @@ export default function AdminPage() {
                   </div>
 
                   {processedData.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="data-table text-xs">
-                        <thead>
-                          <tr>
-                            <th>Processed At</th>
-                            <th>Summary</th>
-                            <th>Items</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {processedData.map(d => (
-                            <tr key={d.id}>
-                              <td className="text-muted-foreground whitespace-nowrap">
-                                {formatToWAT(d.createdAt)}
-                              </td>
-                              <td className="font-medium text-foreground">{d.summary}</td>
-                              <td>
-                                <span className="badge badge-gray">
-                                  {Array.isArray(d.structuredData) ? d.structuredData.length : 'Object'}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                    <div className="p-6 space-y-4 max-h-[800px] overflow-y-auto">
+                      {processedData.map(d => (
+                        <div key={d.id} className="p-5 rounded-xl border border-border bg-secondary/10 hover:border-primary/30 transition-colors">
+                          <div className="flex justify-between items-start mb-3">
+                            <span className="text-xs font-mono text-muted-foreground bg-secondary/50 px-2 py-1 rounded">
+                              {formatToWAT(d.createdAt)}
+                            </span>
+                            <span className="badge badge-purple">
+                              {Array.isArray(d.structuredData) ? d.structuredData.length : 'Object'} Items Processed
+                            </span>
+                          </div>
+                          <div className="prose prose-sm dark:prose-invert max-w-none text-foreground prose-p:leading-relaxed prose-headings:font-bold prose-a:text-primary">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              {d.summary}
+                            </ReactMarkdown>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   ) : (
                     <div className="px-6 py-12 text-center text-muted-foreground text-sm">
