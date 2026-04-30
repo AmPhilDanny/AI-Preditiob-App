@@ -3,13 +3,12 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("POSTGRES_PRISMA_URL")
-  directUrl = env("DATABASE_URL_UNPOOLED")
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
 }
 
 model SystemConfig {
-  id              String   @id @default("default")
+  id              String   @id @map("_id")
   scrapingUrls    String[]
   
   footballApiKey1 String?
@@ -33,27 +32,27 @@ model SystemConfig {
   openrouterApiKey  String?
   openrouterEnabled Boolean @default(false)
   openrouterModel   String? @default("google/gemini-2.0-flash-001")
-  analystPrompt String   @db.Text
-  scraperPrompt String   @db.Text
-  processorPrompt String @default("You are an expert data processor. Your job is to take raw match data and organize it into a clean, structured format for analysis. Sort matches by league and time, and ensure all stats are normalized.") @db.Text
+  analystPrompt String
+  scraperPrompt String
+  processorPrompt String @default("You are an expert data processor. Your job is to take raw match data and organize it into a clean, structured format for analysis. Sort matches by league and time, and ensure all stats are normalized.")
   aiAnalysisEnabled Boolean @default(true)
   predictionThreshold Int @default(75)
   updatedAt     DateTime @updatedAt
 }
 
 model ProcessedData {
-  id          String   @id @default(cuid())
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
   matchDate   DateTime?
   homeTeam    String
   awayTeam    String
   league      String
-  summary     String   @db.Text
+  summary     String
   structuredData Json
   createdAt   DateTime @default(now())
 }
 
 model PredictionSlip {
-  id          String   @id @default(cuid())
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
   sessionId   String?  
   totalOdds   Float
   confidence  Int
@@ -66,7 +65,7 @@ model PredictionSlip {
 }
 
 model ScrapedData {
-  id          String   @id @default(cuid())
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
   sourceApi   String
   matchId     String?  // External ID if available
   homeTeam    String
@@ -77,3 +76,4 @@ model ScrapedData {
   rawStats    Json?    // Raw API data
   createdAt   DateTime @default(now())
 }
+
