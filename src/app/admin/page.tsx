@@ -224,7 +224,7 @@ export default function AdminPage() {
         setTimeout(() => setSaved(false), 2500);
       } else {
         console.error("Save failed:", data.error);
-        alert("Failed to save configuration. Check console for details.");
+        alert(`Failed to save configuration: ${data.error || 'Unknown Error'}`);
       }
     } catch (e) {
       console.error('Save failed:', e);
