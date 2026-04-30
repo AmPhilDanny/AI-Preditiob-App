@@ -7,19 +7,27 @@ export async function POST() {
   try {
     const config = await configService.getConfig();
     
-    // Select the enabled AI provider
-    let provider: 'gemini' | 'grok' | 'mistral' = 'gemini';
+    // Select the enabled AI provider based on priority
+    let provider: 'gemini' | 'grok' | 'mistral' | 'openrouter' = 'gemini';
     let apiKey = '';
+    let model = '';
     
     if (config.aiProviders.gemini.enabled) {
       provider = 'gemini';
       apiKey = config.aiProviders.gemini.apiKey;
+      model = config.aiProviders.gemini.model;
     } else if (config.aiProviders.grok.enabled) {
       provider = 'grok';
       apiKey = config.aiProviders.grok.apiKey;
+      model = 'grok-beta'; // Default for Grok
     } else if (config.aiProviders.mistral.enabled) {
       provider = 'mistral';
       apiKey = config.aiProviders.mistral.apiKey;
+      model = config.aiProviders.mistral.model;
+    } else if (config.aiProviders.openrouter.enabled) {
+      provider = 'openrouter';
+      apiKey = config.aiProviders.openrouter.apiKey;
+      model = config.aiProviders.openrouter.model;
     }
 
     if (!apiKey) {
@@ -29,7 +37,7 @@ export async function POST() {
     const aiConfig: AIConfig = {
       provider,
       apiKey,
-      model: provider === 'gemini' ? 'gemini-1.5-pro' : 'latest',
+      model,
       systemPrompt: config.agentPrompts.processor
     };
 

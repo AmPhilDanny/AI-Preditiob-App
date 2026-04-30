@@ -79,23 +79,37 @@ export class ScraperAgent {
       const webMatches: MatchData[] = [];
       
       const response = await axios.get(url, { 
-        timeout: 10000,
+        timeout: 15000,
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.5',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Referer': 'https://www.google.com/',
+          'Sec-Ch-Ua': '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
+          'Sec-Ch-Ua-Mobile': '?0',
+          'Sec-Ch-Ua-Platform': '"Windows"',
+          'Sec-Fetch-Dest': 'document',
+          'Sec-Fetch-Mode': 'navigate',
+          'Sec-Fetch-Site': 'cross-site',
+          'Sec-Fetch-User': '?1',
+          'Upgrade-Insecure-Requests': '1',
+          'Cache-Control': 'max-age=0'
         }
       });
       const html = response.data;
       const $ = cheerio.load(html);
       
       $('script, style, nav, footer').remove();
-      const cleanContent = $('body').text().replace(/\s+/g, ' ').trim().substring(0, 5000);
+      const cleanContent = $('body').text().replace(/\s+/g, ' ').trim().substring(0, 8000);
 
       const aiConfig: AIConfig = {
-        provider: 'gemini',
-        apiKey: config.aiProviders.gemini.apiKey,
-        model: 'gemini-2.0-flash',
+        provider: config.aiProviders.gemini.enabled ? 'gemini' : 
+                  config.aiProviders.openrouter.enabled ? 'openrouter' : 'gemini',
+        apiKey: config.aiProviders.gemini.enabled ? config.aiProviders.gemini.apiKey : 
+                config.aiProviders.openrouter.enabled ? config.aiProviders.openrouter.apiKey : '',
+        model: config.aiProviders.gemini.enabled ? config.aiProviders.gemini.model : 
+               config.aiProviders.openrouter.enabled ? config.aiProviders.openrouter.model : 'gemini-1.5-flash',
         systemPrompt: config.agentPrompts.scraper
       };
 
@@ -121,8 +135,12 @@ export class ScraperAgent {
       
       await this.saveToDb(webMatches, 'web-crawler');
       return webMatches;
-    } catch (err) {
-      console.error(`[SCRAPER] Targeted crawl failed for ${url}:`, err);
+    } catch (err: any) {
+      if (err.response?.status === 403) {
+        console.error(`[SCRAPER] Access Forbidden (403) for ${url}. This site likely blocks automated requests.`);
+        throw new Error(`Access Forbidden (403): The website ${url} is blocking the scraper. You may need a more advanced crawling setup or a different source.`);
+      }
+      console.error(`[SCRAPER] Targeted crawl failed for ${url}:`, err.message);
       throw err;
     }
   }

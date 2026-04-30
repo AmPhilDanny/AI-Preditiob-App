@@ -112,6 +112,7 @@ export class AIFactory {
       return { text, usedFallback: false };
     } catch (primaryErr: any) {
       console.warn(`[AI] Primary (${this.config.provider}) failed: ${primaryErr.message}`);
+      if (primaryErr.stack) console.error(primaryErr.stack);
 
       // Try fallback
       if (this.config.fallbackProvider && this.config.fallbackApiKey) {
@@ -138,7 +139,7 @@ export class AIFactory {
   // ── General analysis (chat & process) ─────────────────────────────────────
   async process(data: any, userPrompt?: string): Promise<any> {
     const systemPrompt = this.config.systemPrompt || "You are an expert football analyst. Provide clear, data-driven betting insights.";
-    const inputJson = JSON.stringify(data).substring(0, 30000);
+    const inputJson = JSON.stringify(data).substring(0, 100000);
     const userContent = userPrompt
       ? `${userPrompt}\n\nMATCH DATA:\n${inputJson}`
       : `Analyze this match data and provide betting insights:\n\n${inputJson}`;

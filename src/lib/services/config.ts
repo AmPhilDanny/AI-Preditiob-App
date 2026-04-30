@@ -92,7 +92,7 @@ class ConfigService {
           gemini: { 
             apiKey: config.geminiApiKey || '', 
             enabled: config.geminiEnabled,
-            model: config.geminiModel || 'gemini-2.5-flash'
+            model: config.geminiModel || 'gemini-1.5-flash'
           },
           grok: { apiKey: config.grokApiKey || '', enabled: config.grokEnabled },
           mistral: { 
@@ -216,7 +216,7 @@ class ConfigService {
         api4: { apiKey: '', enabled: false },
       },
       aiProviders: {
-        gemini: { apiKey: '', enabled: true, model: 'gemini-2.5-flash' },
+        gemini: { apiKey: '', enabled: true, model: 'gemini-1.5-flash' },
         grok: { apiKey: '', enabled: false },
         mistral: { apiKey: '', enabled: false, model: 'mistral-large-latest' },
         openrouter: { apiKey: '', enabled: false, model: 'google/gemini-2.0-flash-001' },

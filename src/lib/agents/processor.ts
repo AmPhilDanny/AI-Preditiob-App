@@ -24,16 +24,23 @@ export class ProcessorAgent {
     });
 
     if (rawData.length === 0) {
-      console.log("Processor Agent: No raw data found to process.");
+      console.log(`Processor Agent: No raw data found for the last ${days} days.`);
       return 0;
     }
 
+    console.log(`Processor Agent: Found ${rawData.length} records. Sending to AI for organization...`);
+
     // 2. Use AI to organize data
-    // We send the raw data to Gemini to get a professional betting analysis summary
     const result = await this.aiFactory.process(rawData);
 
+    if (!result.success) {
+      console.error(`Processor Agent: AI Processing failed: ${result.summary}`);
+    }
+
     // 3. Save processed data
-    // We store the analysis as a high-level intelligence entry for today
+    // We sanitize rawData to ensure it's plain JSON (no Date objects) before saving
+    const sanitizedData = JSON.parse(JSON.stringify(rawData));
+
     await prisma.processedData.create({
       data: {
         matchDate: new Date(),
@@ -41,7 +48,7 @@ export class ProcessorAgent {
         awayTeam: "All Matches",
         league: "Global Intelligence",
         summary: result.summary,
-        structuredData: rawData as any // Keep raw data for retrieval in structured format
+        structuredData: sanitizedData
       }
     });
 
