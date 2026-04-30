@@ -1095,6 +1095,27 @@ export default function AdminPage() {
                               {showKey[id] ? <EyeOff size={14} /> : <Eye size={14} />}
                             </button>
                           </div>
+                          
+                          {/* Model selection for Gemini */}
+                          {id === 'gemini' && (
+                            <div className="mt-3 space-y-1.5">
+                              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight">Active Model</label>
+                              <input
+                                type="text"
+                                value={config?.aiProviders?.gemini?.model || ''}
+                                onChange={e => {
+                                  const u = { ...config.aiProviders, gemini: { ...config.aiProviders.gemini, model: e.target.value } };
+                                  setConfig({ ...config, aiProviders: u });
+                                }}
+                                className="form-input text-xs"
+                                placeholder="e.g. gemini-1.5-flash"
+                              />
+                              <p className="text-[10px] text-muted-foreground/60 italic">
+                                Use "gemini-1.5-flash", "gemini-1.5-pro", or "gemini-2.0-flash"
+                              </p>
+                            </div>
+                          )}
+
                           {testRes[`ai-${id}`] && !testRes[`ai-${id}`].success && (
                             <p className="text-[10px] text-destructive mt-1">{testRes[`ai-${id}`].msg}</p>
                           )}

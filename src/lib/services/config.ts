@@ -9,7 +9,7 @@ export interface SystemConfig {
     api4: { apiKey: string; enabled: boolean };
   };
   aiProviders: {
-    gemini: { apiKey: string; enabled: boolean };
+    gemini: { apiKey: string; enabled: boolean; model: string };
     grok: { apiKey: string; enabled: boolean };
     mistral: { apiKey: string; enabled: boolean };
   };
@@ -39,7 +39,6 @@ class ConfigService {
       const config = await prisma.systemConfig.findFirst();
       
       if (!config) {
-        // No config in DB yet — create the default row so saves work correctly
         const defaults = this.getDefaultConfig();
         try {
           await prisma.systemConfig.create({
@@ -56,6 +55,7 @@ class ConfigService {
               footballApi4Enabled: defaults.footballApis.api4.enabled,
               geminiApiKey: defaults.aiProviders.gemini.apiKey,
               geminiEnabled: defaults.aiProviders.gemini.enabled,
+              geminiModel: defaults.aiProviders.gemini.model,
               grokApiKey: defaults.aiProviders.grok.apiKey,
               grokEnabled: defaults.aiProviders.grok.enabled,
               mistralApiKey: defaults.aiProviders.mistral.apiKey,
@@ -82,7 +82,11 @@ class ConfigService {
           api4: { apiKey: config.footballApiKey4 || '', enabled: config.footballApi4Enabled },
         },
         aiProviders: {
-          gemini: { apiKey: config.geminiApiKey || '', enabled: config.geminiEnabled },
+          gemini: { 
+            apiKey: config.geminiApiKey || '', 
+            enabled: config.geminiEnabled,
+            model: config.geminiModel || 'gemini-1.5-flash'
+          },
           grok: { apiKey: config.grokApiKey || '', enabled: config.grokEnabled },
           mistral: { apiKey: config.mistralApiKey || '', enabled: config.mistralEnabled },
         },
@@ -103,7 +107,6 @@ class ConfigService {
   async updateConfig(updates: Partial<SystemConfig>) {
     const current = await this.getConfig();
 
-    // Deep merge nested objects to avoid wiping existing keys
     const merged: SystemConfig = {
       ...current,
       ...updates,
@@ -140,6 +143,7 @@ class ConfigService {
         footballApi4Enabled: merged.footballApis.api4.enabled,
         geminiApiKey: merged.aiProviders.gemini.apiKey,
         geminiEnabled: merged.aiProviders.gemini.enabled,
+        geminiModel: merged.aiProviders.gemini.model,
         grokApiKey: merged.aiProviders.grok.apiKey,
         grokEnabled: merged.aiProviders.grok.enabled,
         mistralApiKey: merged.aiProviders.mistral.apiKey,
@@ -163,6 +167,7 @@ class ConfigService {
         footballApi4Enabled: merged.footballApis.api4.enabled,
         geminiApiKey: merged.aiProviders.gemini.apiKey,
         geminiEnabled: merged.aiProviders.gemini.enabled,
+        geminiModel: merged.aiProviders.gemini.model,
         grokApiKey: merged.aiProviders.grok.apiKey,
         grokEnabled: merged.aiProviders.grok.enabled,
         mistralApiKey: merged.aiProviders.mistral.apiKey,
@@ -186,7 +191,7 @@ class ConfigService {
         api4: { apiKey: '', enabled: false },
       },
       aiProviders: {
-        gemini: { apiKey: '', enabled: true },
+        gemini: { apiKey: '', enabled: true, model: 'gemini-1.5-flash' },
         grok: { apiKey: '', enabled: false },
         mistral: { apiKey: '', enabled: false },
       },
