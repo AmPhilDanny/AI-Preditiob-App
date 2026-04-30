@@ -21,25 +21,42 @@ export async function POST(request: Request) {
       provider,
       apiKey,
       model: provider === 'gemini' ? 'gemini-1.5-pro' : 'latest',
-      systemPrompt: "You are a football data analyst. Use the provided context to answer the user's question about matches, leagues, and odds."
+      systemPrompt: config.agentPrompts.analyst || "You are an expert football data analyst. Use the provided match data to answer questions about Goal-Goal (GG), Over/Under 2.5, 1X2, and other betting markets. Always be precise and point out high-probability matches."
     };
 
     const ai = new AIFactory(aiConfig);
 
-    // Fetch some context from processed data
-    const recentData = await prisma.processedData.findMany({
+    // Fetch substantial context from recent scraped data
+    const recentMatches = await prisma.scrapedData.findMany({
       orderBy: { createdAt: 'desc' },
-      take: 3
+      take: 50
     });
 
-    const context = recentData.map(d => d.summary).join("\n");
-    const fullMessage = `Context from recent match processing:\n${context}\n\nUser Question: ${message}`;
+    const context = recentMatches.map(m => {
+      return `[${m.league}] ${m.homeTeam} vs ${m.awayTeam} | Odds: H:${(m.odds as any)?.home} D:${(m.odds as any)?.draw} A:${(m.odds as any)?.away}`;
+    }).join("\n");
 
-    const response = await ai.process({ message }, fullMessage);
+    const fullMessage = `
+DATABASE CONTEXT (Today's Scraped Matches):
+${context}
+
+CONVERSATION HISTORY:
+${history.map((h: any) => `${h.role.toUpperCase()}: ${h.content}`).join("\n")}
+
+USER QUESTION: ${message}
+
+INSTRUCTIONS:
+1. Use the DATABASE CONTEXT to find relevant matches.
+2. If the user asks for "GG", "Goal-Goal", or "Both Teams to Score", find matches with competitive odds or high-scoring potential.
+3. If the user asks for "Over 2.5" or "Under 2.5", identify matches based on your football knowledge and the provided context.
+4. Be professional and concise. If no matches fit, say so.
+`;
+
+    const response = await ai.process(recentMatches, fullMessage);
 
     return NextResponse.json({ 
       success: true, 
-      reply: response.summary, // AIFactory.process returns a summary in our mock
+      reply: response.summary, 
       timestamp: new Date().toISOString()
     });
   } catch (error: any) {

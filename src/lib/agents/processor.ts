@@ -29,24 +29,23 @@ export class ProcessorAgent {
     }
 
     // 2. Use AI to organize data
-    // In a real scenario, we might chunk this data to avoid context window limits
+    // We send the raw data to Gemini to get a professional betting analysis summary
     const result = await this.aiFactory.process(rawData);
 
     // 3. Save processed data
-    // For simplicity, we create one entry for the batch, but in reality, 
-    // we might want to split it by league or match.
+    // We store the analysis as a high-level intelligence entry for today
     await prisma.processedData.create({
       data: {
         matchDate: new Date(),
-        homeTeam: "Multiple Teams",
-        awayTeam: "Multiple Teams",
-        league: "Various",
+        homeTeam: "Daily Analysis",
+        awayTeam: "All Matches",
+        league: "Global Intelligence",
         summary: result.summary,
-        structuredData: result.structuredData
+        structuredData: rawData as any // Keep raw data for retrieval in structured format
       }
     });
 
-    console.log(`Processor Agent: Successfully organized ${rawData.length} records.`);
+    console.log(`Processor Agent: Successfully organized ${rawData.length} records into daily intelligence.`);
     return rawData.length;
   }
 

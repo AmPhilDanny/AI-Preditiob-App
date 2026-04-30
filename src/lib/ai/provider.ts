@@ -1,3 +1,5 @@
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
 export type AIProvider = 'gemini' | 'grok' | 'mistral';
 
 export interface AIConfig {
@@ -26,92 +28,98 @@ export class AIFactory {
     const prompt = this.config.systemPrompt || "Predict the outcome of this football match.";
     const fullPrompt = userPrompt ? `${prompt}\n\nUser Request: ${userPrompt}` : prompt;
     
-    switch (this.config.provider) {
-      case 'gemini':
-        return this.predictWithGemini(matchData, fullPrompt);
-      case 'grok':
-        return this.predictWithGrok(matchData, fullPrompt);
-      case 'mistral':
-        return this.predictWithMistral(matchData, fullPrompt);
-      default:
-        throw new Error(`Unsupported AI provider: ${this.config.provider}`);
+    if (this.config.provider === 'gemini') {
+      return this.predictWithGemini(matchData, fullPrompt);
     }
+    
+    // Fallback for other providers (if not yet implemented)
+    return {
+      match: matchData.homeTeam + " vs " + matchData.awayTeam,
+      prediction: "Analysis Pending",
+      odds: 1.0,
+      probability: 0.5,
+      reasoning: "AI Provider not fully implemented for predictions."
+    };
   }
 
   private async predictWithGemini(data: any, prompt: string): Promise<PredictionResult> {
-    console.log(`Predicting with Gemini using prompt: ${prompt.substring(0, 50)}...`);
-    return {
-      match: data.homeTeam + " vs " + data.awayTeam,
-      prediction: "Home Win",
-      odds: data.odds?.home || 2.05,
-      probability: 0.52,
-      reasoning: "Reasoning generated based on the custom admin prompt and team form."
-    };
-  }
-
-  private async predictWithGrok(data: any, prompt: string): Promise<PredictionResult> {
-    console.log(`Predicting with Grok using prompt: ${prompt.substring(0, 50)}...`);
-    return {
-      match: data.homeTeam + " vs " + data.awayTeam,
-      prediction: "Away Win",
-      odds: data.odds?.away || 2.10,
-      probability: 0.49,
-      reasoning: "Grok's real-time analysis adjusted by the admin instructions."
-    };
-  }
-
-  private async predictWithMistral(data: any, prompt: string): Promise<PredictionResult> {
-    console.log(`Predicting with Mistral using prompt: ${prompt.substring(0, 50)}...`);
-    return {
-      match: data.homeTeam + " vs " + data.awayTeam,
-      prediction: "Draw",
-      odds: data.odds?.draw || 3.20,
-      probability: 0.35,
-      reasoning: "Mistral reasoning tailored to the specified analysis criteria."
-    };
+    try {
+      const genAI = new GoogleGenerativeAI(this.config.apiKey);
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      
+      const input = JSON.stringify(data);
+      const result = await model.generateContent([
+        prompt,
+        "Return a JSON object with: match, prediction, odds, probability (0-1), reasoning.",
+        input
+      ]);
+      const text = result.response.text();
+      const parsed = JSON.parse(text.replace(/```json|```/g, ""));
+      
+      return parsed;
+    } catch (err) {
+      console.error("Gemini Prediction Error:", err);
+      return {
+        match: data.homeTeam + " vs " + data.awayTeam,
+        prediction: "Error",
+        odds: 0,
+        probability: 0,
+        reasoning: "Failed to connect to Gemini."
+      };
+    }
   }
 
   async process(data: any, userPrompt?: string): Promise<any> {
-    const prompt = this.config.systemPrompt || "Process this data.";
+    const prompt = this.config.systemPrompt || "Process this football data and identify patterns.";
     const fullPrompt = userPrompt ? `${prompt}\n\nUser Request: ${userPrompt}` : prompt;
     
-    // For now, simulating AI processing. In production, this would call the actual APIs.
-    console.log(`Processing with ${this.config.provider} using prompt: ${fullPrompt.substring(0, 50)}...`);
-    
+    if (this.config.provider === 'gemini') {
+      try {
+        const genAI = new GoogleGenerativeAI(this.config.apiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        
+        const input = JSON.stringify(data).substring(0, 30000); // Guard against token limits
+        const result = await model.generateContent([
+          fullPrompt,
+          "Format your response as a clean summary of key matches and betting opportunities (GG, Over 2.5, Home win etc).",
+          input
+        ]);
+        
+        return {
+          summary: result.response.text(),
+          structuredData: data,
+          success: true
+        };
+      } catch (err) {
+        console.error("Gemini Processing Error:", err);
+      }
+    }
+
     return {
-      summary: `Processed ${Array.isArray(data) ? data.length : 1} items.`,
+      summary: `Processed ${Array.isArray(data) ? data.length : 1} items (Offline Mode).`,
       structuredData: data,
       success: true
     };
   }
 
   async extractFromHtml(html: string): Promise<PredictionResult[]> {
-    console.log(`Extracting match data from HTML using ${this.config.provider}...`);
-    // In a real production environment, we send the HTML to the LLM (Gemini/Grok)
-    // with a structured prompt to identify and parse team names and odds.
-    
-    return [
-      {
-        match: "Manchester United vs Chelsea",
-        prediction: "Home Win",
-        odds: 2.15,
-        probability: 0.60,
-        reasoning: "High-priority match found in the web content headers."
-      },
-      {
-        match: "Bayern Munich vs Dortmund",
-        prediction: "Home Win",
-        odds: 1.65,
-        probability: 0.75,
-        reasoning: "Match details detected in the sports news section."
-      },
-      {
-        match: "Napoli vs Juventus",
-        prediction: "Draw",
-        odds: 3.25,
-        probability: 0.35,
-        reasoning: "Upcoming fixture identified from the league table summary."
+    if (this.config.provider === 'gemini') {
+      try {
+        const genAI = new GoogleGenerativeAI(this.config.apiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        
+        const result = await model.generateContent([
+          "Extract match data from this HTML content. Return a JSON array of objects with: match (Home vs Away), odds, reasoning.",
+          html.substring(0, 20000)
+        ]);
+        
+        const text = result.response.text();
+        return JSON.parse(text.replace(/```json|```/g, ""));
+      } catch (err) {
+        console.error("Gemini Extraction Error:", err);
       }
-    ];
+    }
+    
+    return [];
   }
 }
