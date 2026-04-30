@@ -46,6 +46,7 @@ export default function AdminPage() {
   const [isScraping, setIsScraping] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isCleaning, setIsCleaning] = useState(false);
+  const [saving,   setSaving]   = useState(false);
   const [saved,    setSaved]    = useState(false);
   
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
