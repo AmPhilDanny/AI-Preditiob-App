@@ -104,6 +104,12 @@ export default function AdminPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [pageInput, setPageInput] = useState('');
+  
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTotalPages, setHistoryTotalPages] = useState(1);
+  const [historySearch, setHistorySearch] = useState('');
+  const [historyPageInput, setHistoryPageInput] = useState('');
+  const [selectedSlip, setSelectedSlip] = useState<any>(null);
 
   /* ── Load Scraped Data ─────────────────────────────────────── */
   const loadScrapedData = async (pageNum = page, search = searchQuery) => {
@@ -224,12 +230,29 @@ export default function AdminPage() {
     }
   };
 
+  /* ── Load History ─────────────────────────────────────────── */
+  const loadHistory = async (pageNum = historyPage, search = historySearch) => {
+    try {
+      const res = await fetch(`/api/admin/history?page=${pageNum}&search=${encodeURIComponent(search)}`);
+      const json = await res.json();
+      if (json.success) {
+        setHistory(json.data);
+        setHistoryPage(json.pagination.page);
+        setHistoryTotalPages(json.pagination.totalPages);
+        setHistoryPageInput(json.pagination.page.toString());
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   useEffect(() => {
     if (active === 'data') {
       loadScrapedData();
       loadStatuses();
     }
     if (active === 'processor') loadProcessedData();
+    if (active === 'history') loadHistory(1);
   }, [active]);
   const handleSave = async () => {
     setSaving(true);
@@ -967,9 +990,22 @@ export default function AdminPage() {
                         <span className="badge badge-green">{history.length}</span>
                       )}
                     </h3>
-                    <button className="btn-icon" onClick={load}>
-                      <RefreshCcw size={14} />
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <input
+                          type="text"
+                          placeholder="Search status..."
+                          value={historySearch}
+                          onChange={(e) => setHistorySearch(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && loadHistory(1)}
+                          className="input-field pl-8 py-1.5 text-xs w-[150px]"
+                        />
+                      </div>
+                      <button className="btn-icon" onClick={() => loadHistory()}>
+                        <RefreshCcw size={14} />
+                      </button>
+                    </div>
                   </div>
 
                   {history.length > 0 ? (
@@ -986,7 +1022,7 @@ export default function AdminPage() {
                         </thead>
                         <tbody>
                           {history.map(slip => (
-                            <tr key={slip.id}>
+                            <tr key={slip.id} className="group hover:bg-secondary/20 transition-colors">
                               <td className="text-xs font-mono text-muted-foreground whitespace-nowrap">
                                 {formatToWAT(slip.createdAt)}
                               </td>
@@ -1012,6 +1048,13 @@ export default function AdminPage() {
                               <td>
                                 <div className="flex items-center gap-1">
                                   <button
+                                    onClick={() => setSelectedSlip(slip)}
+                                    className="p-1 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                                    title="View Details"
+                                  >
+                                    <Eye size={14} />
+                                  </button>
+                                  <button
                                     onClick={() => updateSlipStatus(slip.id, 'WON')}
                                     className="p-1 rounded bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-colors"
                                     title="Mark as Won"
@@ -1031,6 +1074,48 @@ export default function AdminPage() {
                           ))}
                         </tbody>
                       </table>
+
+                      {/* History Pagination */}
+                      {historyTotalPages > 1 && (
+                        <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-secondary/10">
+                          <span className="text-xs text-muted-foreground">
+                            Showing page {historyPage} of {historyTotalPages}
+                          </span>
+                          <div className="flex gap-2">
+                            <button 
+                              className="btn-outline text-xs px-3 py-1"
+                              disabled={historyPage <= 1}
+                              onClick={() => loadHistory(historyPage - 1)}
+                            >
+                              Previous
+                            </button>
+                            <div className="flex items-center gap-1 mx-2">
+                              <span className="text-xs text-muted-foreground">Go to:</span>
+                              <input
+                                type="number"
+                                min="1"
+                                max={historyTotalPages}
+                                value={historyPageInput}
+                                onChange={(e) => setHistoryPageInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    const p = parseInt(historyPageInput, 10);
+                                    if (p >= 1 && p <= historyTotalPages) loadHistory(p);
+                                  }
+                                }}
+                                className="input-field py-1 px-2 text-xs w-[60px] text-center"
+                              />
+                            </div>
+                            <button 
+                              className="btn-outline text-xs px-3 py-1"
+                              disabled={historyPage >= historyTotalPages}
+                              onClick={() => loadHistory(historyPage + 1)}
+                            >
+                              Next
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="px-6 py-12 text-center text-muted-foreground text-sm">
@@ -1038,6 +1123,80 @@ export default function AdminPage() {
                     </div>
                   )}
                 </div>
+
+                {/* Detailed Slip View (Modal) */}
+                <AnimatePresence>
+                  {selectedSlip && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        className="card-base w-full max-w-2xl overflow-hidden shadow-2xl"
+                      >
+                        <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-secondary/20">
+                          <div>
+                            <h3 className="font-bold text-foreground">Slip Details</h3>
+                            <p className="text-[10px] text-muted-foreground font-mono">{selectedSlip.id}</p>
+                          </div>
+                          <button onClick={() => setSelectedSlip(null)} className="p-2 hover:bg-secondary rounded-lg transition-colors">
+                            <X size={18} />
+                          </button>
+                        </div>
+                        <div className="p-6 overflow-y-auto max-h-[70vh]">
+                          <div className="grid grid-cols-2 gap-4 mb-6">
+                            <div className="p-4 rounded-xl bg-secondary/30 border border-border">
+                              <p className="section-label">Target Odds</p>
+                              <p className="text-2xl font-black text-foreground">{selectedSlip.targetOdds}×</p>
+                            </div>
+                            <div className="p-4 rounded-xl bg-secondary/30 border border-border">
+                              <p className="section-label">Confidence Score</p>
+                              <p className="text-2xl font-black text-foreground">{selectedSlip.confidence}%</p>
+                            </div>
+                          </div>
+
+                          <h4 className="section-label mb-3">Matches Included</h4>
+                          <div className="space-y-3">
+                            {(Array.isArray(selectedSlip.matches) ? selectedSlip.matches : []).map((m: any, i: number) => (
+                              <div key={i} className="p-4 rounded-xl border border-border hover:border-primary/30 transition-colors">
+                                <div className="flex justify-between items-start mb-2">
+                                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{m.league}</span>
+                                  <span className="badge badge-purple">{m.odds}</span>
+                                </div>
+                                <div className="flex justify-between items-center font-display font-bold text-foreground">
+                                  <span>{m.homeTeam}</span>
+                                  <span className="text-muted-foreground font-normal mx-2">vs</span>
+                                  <span>{m.awayTeam}</span>
+                                </div>
+                                <div className="mt-2 flex items-center justify-between">
+                                  <span className="text-xs text-primary font-bold">{m.selection}</span>
+                                  <span className="text-[10px] text-muted-foreground italic">{m.reasoning}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="px-6 py-4 border-t border-border bg-secondary/10 flex justify-end gap-3">
+                          <button onClick={() => setSelectedSlip(null)} className="btn-ghost">Close</button>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => { updateSlipStatus(selectedSlip.id, 'WON'); setSelectedSlip(null); }}
+                              className="btn-primary bg-emerald-500 hover:bg-emerald-600 border-none"
+                            >
+                              WON
+                            </button>
+                            <button
+                              onClick={() => { updateSlipStatus(selectedSlip.id, 'LOST'); setSelectedSlip(null); }}
+                              className="btn-primary bg-destructive hover:bg-destructive/90 border-none"
+                            >
+                              LOST
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    </div>
+                  )}
+                </AnimatePresence>
 
                 <div className="card-base p-6 bg-primary/5 border-primary/20">
                   <div className="flex items-start gap-4">
@@ -1108,6 +1267,7 @@ export default function AdminPage() {
                               }}
                               className="form-input pr-10 text-xs"
                               placeholder={`${provider.name} Key`}
+                              autoComplete="new-password"
                             />
                             <button
                               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
@@ -1162,6 +1322,7 @@ export default function AdminPage() {
                               }}
                               className="form-input pr-10 text-xs"
                               placeholder={`${id === 'openrouter' ? 'OpenRouter' : id} Neural Key`}
+                              autoComplete="new-password"
                             />
                             <button
                               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
