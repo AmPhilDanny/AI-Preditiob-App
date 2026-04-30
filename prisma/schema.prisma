@@ -23,7 +23,7 @@ model SystemConfig {
 
   geminiApiKey  String?
   geminiEnabled Boolean  @default(true)
-  geminiModel   String   @default("gemini-2.0-flash")
+  geminiModel   String   @default("gemini-2.5-flash")
   grokApiKey    String?
   grokEnabled   Boolean  @default(false)
   mistralApiKey String?
