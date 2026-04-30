@@ -8,8 +8,8 @@ export async function POST(request: Request) {
     const { message, history = [] } = await request.json();
     const config = await configService.getConfig();
 
-    // ── Primary provider selection ──────────────────────────────────────────
-    let provider: 'gemini' | 'grok' | 'mistral' | 'g4f' = 'gemini';
+    // ── Primary provider: pick first enabled AI ─────────────────────────────
+    let provider: 'gemini' | 'grok' | 'mistral' = 'gemini';
     let apiKey = '';
     let model = 'gemini-2.5-flash';
 
@@ -20,36 +20,26 @@ export async function POST(request: Request) {
     } else if (config.aiProviders.mistral.enabled && config.aiProviders.mistral.apiKey) {
       provider = 'mistral';
       apiKey = config.aiProviders.mistral.apiKey;
-      model = config.aiProviders.mistral.model || 'mistral-large-latest';
-    } else if (config.aiProviders.g4f.enabled && config.aiProviders.g4f.apiKey) {
-      provider = 'g4f';
-      apiKey = config.aiProviders.g4f.apiKey;
-      model = config.aiProviders.g4f.model || 'gpt-4';
+      model = 'mistral-large-latest';
     }
 
     if (!apiKey) {
       return NextResponse.json({
         success: true,
-        reply: '⚠️ No AI provider is configured. Please add a Gemini, Mistral, or G4F API key in the Admin Panel → Vault tab.',
+        reply: '⚠️ No AI provider is configured. Please add a Gemini or Mistral API key in the Admin Panel → Vault tab.',
         timestamp: new Date().toISOString()
       });
     }
 
-    // ── Fallback selection (Gemini -> Mistral -> G4F) ────────────────────────
-    let fallbackProvider: 'mistral' | 'g4f' | undefined;
+    // ── Fallback: if Gemini is primary, use Mistral as backup ───────────────
+    let fallbackProvider: 'mistral' | undefined;
     let fallbackApiKey: string | undefined;
     let fallbackModel: string | undefined;
 
-    if (provider === 'gemini') {
-      if (config.aiProviders.mistral.enabled && config.aiProviders.mistral.apiKey) {
-        fallbackProvider = 'mistral';
-        fallbackApiKey = config.aiProviders.mistral.apiKey;
-        fallbackModel = config.aiProviders.mistral.model || 'mistral-large-latest';
-      } else if (config.aiProviders.g4f.enabled && config.aiProviders.g4f.apiKey) {
-        fallbackProvider = 'g4f';
-        fallbackApiKey = config.aiProviders.g4f.apiKey;
-        fallbackModel = config.aiProviders.g4f.model || 'gpt-4';
-      }
+    if (provider === 'gemini' && config.aiProviders.mistral.enabled && config.aiProviders.mistral.apiKey) {
+      fallbackProvider = 'mistral';
+      fallbackApiKey = config.aiProviders.mistral.apiKey;
+      fallbackModel = 'mistral-large-latest';
     }
 
     const aiConfig: AIConfig = {

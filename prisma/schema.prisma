@@ -28,11 +28,6 @@ model SystemConfig {
   grokEnabled   Boolean  @default(false)
   mistralApiKey String?
   mistralEnabled Boolean @default(false)
-  mistralModel   String? @default("mistral-large-latest")
-  
-  g4fApiKey     String?
-  g4fEnabled    Boolean @default(false)
-  g4fModel      String? @default("gpt-4")
   analystPrompt String   @db.Text
   scraperPrompt String   @db.Text
   processorPrompt String @default("You are an expert data processor. Your job is to take raw match data and organize it into a clean, structured format for analysis. Sort matches by league and time, and ensure all stats are normalized.") @db.Text
