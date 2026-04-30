@@ -10,6 +10,50 @@ import {
   Sparkles, Check, Database, Terminal
 } from 'lucide-react';
 
+// ── Lightweight Markdown Renderer ─────────────────────────────────────────────
+function renderMarkdown(text: string): string {
+  return text
+    // Code blocks
+    .replace(/```[\w]*\n?([\s\S]*?)```/g, '<pre class="bg-background/60 border border-border rounded-lg p-3 text-xs overflow-x-auto my-2 font-mono text-emerald-400">$1</pre>')
+    // Inline code
+    .replace(/`([^`]+)`/g, '<code class="bg-background/60 px-1.5 py-0.5 rounded text-xs font-mono text-primary">$1</code>')
+    // H3
+    .replace(/^### (.+)$/gm, '<h3 class="font-bold text-sm text-foreground mt-3 mb-1">$1</h3>')
+    // H2
+    .replace(/^## (.+)$/gm, '<h2 class="font-bold text-base text-foreground mt-4 mb-2 border-b border-border pb-1">$1</h2>')
+    // H1
+    .replace(/^# (.+)$/gm, '<h1 class="font-black text-lg text-primary mt-4 mb-2">$1</h1>')
+    // Bold+Italic
+    .replace(/\*\*\*(.+?)\*\*\*/g, '<strong class="font-bold italic text-foreground">$1</strong>')
+    // Bold
+    .replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold text-foreground">$1</strong>')
+    // Italic
+    .replace(/\*(.+?)\*/g, '<em class="italic text-muted-foreground">$1</em>')
+    // Horizontal rule
+    .replace(/^---$/gm, '<hr class="border-border my-3" />')
+    // Bullet lists
+    .replace(/^[\-\*] (.+)$/gm, '<li class="flex gap-2 text-sm"><span class="text-primary mt-1 shrink-0">•</span><span>$1</span></li>')
+    // Numbered lists
+    .replace(/^(\d+)\. (.+)$/gm, '<li class="flex gap-2 text-sm"><span class="text-primary font-bold shrink-0">$1.</span><span>$2</span></li>')
+    // Wrap consecutive <li> items in <ul>
+    .replace(/(<li[^>]*>[\s\S]*?<\/li>\n?)+/g, '<ul class="space-y-1.5 my-2 pl-1">$&</ul>')
+    // Line breaks
+    .replace(/\n\n/g, '</p><p class="mt-2">')
+    .replace(/\n/g, '<br/>');
+}
+
+function ChatMessage({ content, role }: { content: string; role: string }) {
+  if (role === 'user') {
+    return <span>{content}</span>;
+  }
+  return (
+    <div
+      className="prose-chat"
+      dangerouslySetInnerHTML={{ __html: `<p>${renderMarkdown(content)}</p>` }}
+    />
+  );
+}
+
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
   show:   { opacity: 1, y: 0, transition: { duration: 0.4 } },
@@ -253,7 +297,7 @@ export default function HomePage() {
                       ? 'bg-primary text-white rounded-tr-none' 
                       : 'bg-secondary text-foreground rounded-tl-none border border-border'
                   }`}>
-                    {msg.content}
+                    <ChatMessage content={msg.content} role={msg.role} />
                   </div>
                 </div>
               ))}
