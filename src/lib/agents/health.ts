@@ -11,7 +11,7 @@ export class HealthAgent {
     let latestProcessed = null;
     
     try {
-      await prisma.$queryRaw`SELECT 1`;
+      await prisma.$runCommandRaw({ ping: 1 });
       counts.scraped = await prisma.scrapedData.count();
       counts.processed = await prisma.processedData.count();
       
