@@ -81,9 +81,9 @@ export default function HomePage() {
   const [isTyping, setIsTyping] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  // Slip History — persisted in localStorage
+  // Slip History — persisted in database via API
   interface SlipHistory {
-    id: string;
+    id: string; // sessionId
     slips: any[];
     provider: string;
     timestamp: string;
@@ -92,33 +92,45 @@ export default function HomePage() {
   const [slipHistory, setSlipHistory] = useState<SlipHistory[]>([]);
   const [showHistory, setShowHistory] = useState(false);
 
-  // Load history from localStorage on mount
-  useEffect(() => {
+  const fetchHistory = async () => {
     try {
-      const stored = localStorage.getItem('slipHistory');
-      if (stored) setSlipHistory(JSON.parse(stored));
-    } catch {}
+      const res = await fetch('/api/history');
+      const json = await res.json();
+      if (json.success) setSlipHistory(json.history);
+    } catch (e) {
+      console.error('Failed to load history', e);
+    }
+  };
+
+  // Load history from API on mount
+  useEffect(() => {
+    fetchHistory();
   }, []);
 
-  const saveToHistory = (entry: SlipHistory) => {
-    setSlipHistory(prev => {
-      const updated = [entry, ...prev].slice(0, 20); // keep last 20
-      try { localStorage.setItem('slipHistory', JSON.stringify(updated)); } catch {}
-      return updated;
-    });
+  const saveToHistory = async () => {
+    // Re-fetch from DB after generating new slips to keep it in sync
+    await fetchHistory();
   };
 
-  const deleteFromHistory = (id: string) => {
-    setSlipHistory(prev => {
-      const updated = prev.filter(e => e.id !== id);
-      try { localStorage.setItem('slipHistory', JSON.stringify(updated)); } catch {}
-      return updated;
-    });
+  const deleteFromHistory = async (id: string) => {
+    try {
+      await fetch(`/api/history?sessionId=${id}`, { method: 'DELETE' });
+      setSlipHistory(prev => prev.filter(e => e.id !== id));
+    } catch (e) {
+      console.error('Failed to delete history item', e);
+    }
   };
 
-  const clearHistory = () => {
-    setSlipHistory([]);
-    try { localStorage.removeItem('slipHistory'); } catch {}
+  const clearHistory = async () => {
+    try {
+      // Archive all currently visible slips
+      for (const entry of slipHistory) {
+        await fetch(`/api/history?sessionId=${entry.id}`, { method: 'DELETE' });
+      }
+      setSlipHistory([]);
+    } catch (e) {
+      console.error('Failed to clear history', e);
+    }
   };
 
   // Agent Status State
@@ -169,14 +181,8 @@ export default function HomePage() {
       if (!json.success) throw new Error(json.error || 'Pipeline error');
       
       setData(json);
-      // Add to slip history
-      saveToHistory({
-        id: `history-${Date.now()}`,
-        slips: json.slips,
-        provider: json.provider || 'AI',
-        timestamp: json.timestamp,
-        targets
-      });
+      // Re-fetch history from DB so the new slips show up
+      await saveToHistory();
       setAgents(prev => ({ 
         ...prev, 
         analyst: { status: 'success', lastRun: new Date().toISOString() },

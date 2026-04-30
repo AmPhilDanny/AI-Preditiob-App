@@ -54,12 +54,14 @@ model ProcessedData {
 
 model PredictionSlip {
   id          String   @id @default(cuid())
+  sessionId   String?  
   totalOdds   Float
   confidence  Int
   targetOdds  Int
-  matches     Json     // Store the list of matches in the slip
-  status      String   @default("PENDING") // PENDING, WON, LOST
-  actualResults Json?  // Store actual scores for learning
+  matches     Json     
+  status      String   @default("PENDING") 
+  actualResults Json?  
+  archived    Boolean  @default(false)
   createdAt   DateTime @default(now())
 }
 

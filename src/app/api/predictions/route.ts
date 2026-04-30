@@ -79,10 +79,13 @@ export async function GET(request: Request) {
 
     const slips = await analyst.generateSlips(matchData, targets, chatContext);
     const systemHealth = await health.checkSystemHealth();
+    
+    const sessionId = `session_${Date.now()}`;
 
     await Promise.all(slips.map(slip =>
       prisma.predictionSlip.create({
         data: {
+          sessionId,
           totalOdds: slip.totalOdds,
           confidence: slip.confidence,
           targetOdds: slip.targetOdds,
@@ -93,6 +96,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       success: true,
+      sessionId,
       slips,
       provider: aiConfig.provider,
       health: systemHealth,
