@@ -90,13 +90,18 @@ export class AIFactory {
           structuredData: data,
           success: true
         };
-      } catch (err) {
+      } catch (err: any) {
         console.error("Gemini Processing Error:", err);
+        return {
+          summary: `AI Processing Failed: ${err.message || 'Unknown Error'}. Please check your API key and connection.`,
+          structuredData: data,
+          success: false
+        };
       }
     }
 
     return {
-      summary: `Processed ${Array.isArray(data) ? data.length : 1} items (Offline Mode).`,
+      summary: `Processed ${Array.isArray(data) ? data.length : 1} items (Offline Mode - No Provider).`,
       structuredData: data,
       success: true
     };
