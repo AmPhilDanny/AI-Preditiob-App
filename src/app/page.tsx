@@ -158,19 +158,19 @@ export default function HomePage() {
 
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
 
-  const updateSlipStatus = async (id: string, status: 'WIN' | 'LOSS' | 'PENDING') => {
+  const updateSlipStatus = async (id: string, status: 'WIN' | 'LOSS' | 'PENDING', matchIndex?: number) => {
     try {
       const res = await fetch('/api/history', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status })
+        body: JSON.stringify({ id, status, matchIndex })
       });
       if (res.ok) {
-        showNotification(`Slip marked as ${status}`, 'success');
+        showNotification(matchIndex !== undefined ? `Match marked as ${status}` : `Slip marked as ${status}`, 'success');
         fetchHistory(); // Refresh to show updated status
       }
     } catch (e) {
-      console.error('Failed to update slip status', e);
+      console.error('Failed to update status', e);
     }
   };
 
@@ -866,13 +866,39 @@ export default function HomePage() {
 
                               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {slip.matches?.map((m: any, mi: number) => (
-                                  <div key={mi} className="p-3 rounded-xl bg-background/50 border border-border/50">
-                                    <div className="flex items-center justify-between mb-1">
-                                      <span className="text-[8px] font-black text-primary uppercase">{m.prediction}</span>
-                                      <span className="text-[8px] font-mono text-muted-foreground">{m.odds}×</span>
+                                  <div key={mi} className={`p-3 rounded-xl border transition-all ${
+                                    m.status === 'WIN' ? 'bg-emerald-500/5 border-emerald-500/30' :
+                                    m.status === 'LOSS' ? 'bg-destructive/5 border-destructive/30' :
+                                    'bg-background/50 border-border/50'
+                                  }`}>
+                                    <div className="flex items-center justify-between mb-2">
+                                      <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${
+                                        m.status === 'WIN' ? 'bg-emerald-500/20 text-emerald-500' :
+                                        m.status === 'LOSS' ? 'bg-destructive/20 text-destructive' :
+                                        'bg-primary/10 text-primary'
+                                      }`}>
+                                        {m.prediction}
+                                      </span>
+                                      <div className="flex items-center gap-1">
+                                        <button 
+                                          onClick={() => updateSlipStatus(slip.id, 'WIN', mi)}
+                                          className={`p-1 rounded transition-colors ${m.status === 'WIN' ? 'text-emerald-500 bg-emerald-500/10' : 'text-muted-foreground hover:text-emerald-500'}`}
+                                        >
+                                          <Check size={10} />
+                                        </button>
+                                        <button 
+                                          onClick={() => updateSlipStatus(slip.id, 'LOSS', mi)}
+                                          className={`p-1 rounded transition-colors ${m.status === 'LOSS' ? 'text-destructive bg-destructive/10' : 'text-muted-foreground hover:text-destructive'}`}
+                                        >
+                                          <X size={10} />
+                                        </button>
+                                      </div>
                                     </div>
                                     <p className="text-[11px] font-bold text-foreground truncate">{m.match}</p>
-                                    <p className="text-[9px] text-muted-foreground line-clamp-1 mt-0.5">{m.reasoning}</p>
+                                    <div className="flex items-center justify-between mt-1">
+                                      <p className="text-[9px] text-muted-foreground font-mono">{m.odds}×</p>
+                                      {m.status && <span className="text-[8px] font-black text-muted-foreground italic">{m.status}</span>}
+                                    </div>
                                   </div>
                                 ))}
                               </div>

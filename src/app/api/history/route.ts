@@ -69,18 +69,35 @@ export async function DELETE(request: Request) {
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
-    const { id, status } = body;
+    const { id, status, matchIndex } = body;
 
     if (!id || !status) {
       return NextResponse.json({ success: false, error: 'ID and status required' }, { status: 400 });
     }
 
-    const updated = await prisma.predictionSlip.update({
-      where: { id },
-      data: { status }
-    });
+    if (matchIndex !== undefined) {
+      // Update individual match status within the JSON array
+      const slip = await prisma.predictionSlip.findUnique({ where: { id } });
+      if (!slip) throw new Error('Slip not found');
 
-    return NextResponse.json({ success: true, slip: updated });
+      const matches = [...(slip.matches as any[])];
+      if (matches[matchIndex]) {
+        matches[matchIndex].status = status;
+      }
+
+      const updated = await prisma.predictionSlip.update({
+        where: { id },
+        data: { matches }
+      });
+      return NextResponse.json({ success: true, slip: updated });
+    } else {
+      // Update the entire slip status
+      const updated = await prisma.predictionSlip.update({
+        where: { id },
+        data: { status }
+      });
+      return NextResponse.json({ success: true, slip: updated });
+    }
   } catch (error: any) {
     console.error('Update slip error:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
