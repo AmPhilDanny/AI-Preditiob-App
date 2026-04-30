@@ -104,7 +104,7 @@ export class AIFactory {
       const fallbackResult = await this._tryProcess(
         this.config.fallbackProvider,
         this.config.fallbackApiKey,
-        this.config.fallbackModel,
+        this.config.fallbackModel || '',
         fullPrompt,
         inputJson
       );
