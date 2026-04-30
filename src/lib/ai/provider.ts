@@ -57,14 +57,14 @@ export class AIFactory {
       const parsed = JSON.parse(text.replace(/```json|```/g, ""));
       
       return parsed;
-    } catch (err) {
+    } catch (err: any) {
       console.error("Gemini Prediction Error:", err);
       return {
         match: data.homeTeam + " vs " + data.awayTeam,
         prediction: "Error",
         odds: 0,
         probability: 0,
-        reasoning: "Failed to connect to Gemini."
+        reasoning: `Failed to connect to Gemini: ${err.message || 'Unknown Error'}`
       };
     }
   }
