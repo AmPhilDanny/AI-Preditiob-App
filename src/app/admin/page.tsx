@@ -46,8 +46,14 @@ export default function AdminPage() {
   const [isScraping, setIsScraping] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isCleaning, setIsCleaning] = useState(false);
-  const [saving,   setSaving]   = useState(false);
   const [saved,    setSaved]    = useState(false);
+  
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 5000);
+  };
   
   // Tab persistence
   useEffect(() => {
@@ -138,10 +144,10 @@ export default function AdminPage() {
       const res = await fetch('/api/admin/process', { method: 'POST' });
       const data = await res.json();
       if (data.success) {
-        alert(`Successfully processed ${data.count} records.`);
+        showNotification(`Successfully processed ${data.count} records.`, 'success');
         if (active === 'processor') loadProcessedData();
       } else {
-        alert(`Processing failed: ${data.error}`);
+        showNotification(`Processing failed: ${data.error}`, 'error');
       }
     } catch (e) {
       console.error('Failed to trigger processor:', e);
@@ -158,7 +164,7 @@ export default function AdminPage() {
       const res = await fetch('/api/admin/process', { method: 'DELETE' });
       const data = await res.json();
       if (data.success) {
-        alert(`Cleanup successful: Removed ${data.result.scraped} scraped and ${data.result.processed} processed records.`);
+        showNotification(`Cleanup successful: Removed ${data.result.scraped} scraped and ${data.result.processed} processed records.`, 'success');
         loadScrapedData();
         loadProcessedData();
       }
@@ -204,14 +210,14 @@ export default function AdminPage() {
       });
       const data = await res.json();
       if (data.success) {
-        alert(`Successfully scraped ${data.count} records from ${target}`);
+        showNotification(`Successfully scraped ${data.count} records from ${target}`, 'success');
         loadScrapedData();
       } else {
-        alert(`Scraping failed: ${data.details || data.error}`);
+        showNotification(`Scraping failed: ${data.details || data.error}`, 'error');
       }
     } catch (e) {
       console.error('Failed to trigger targeted scrape:', e);
-      alert('Network or server error occurred while trying to scrape.');
+      showNotification('Network or server error occurred while trying to scrape.', 'error');
     } finally {
       setIsScrapingTarget(null);
     }
@@ -237,14 +243,15 @@ export default function AdminPage() {
         // Update local state with the verified-saved config from DB
         setConfig(data.config);
         setSaved(true);
+        showNotification('Configuration saved successfully!', 'success');
         setTimeout(() => setSaved(false), 2500);
       } else {
         console.error("Save failed:", data.error);
-        alert(`Failed to save configuration: ${data.error || 'Unknown Error'}`);
+        showNotification(`Failed to save configuration: ${data.error || 'Unknown Error'}`, 'error');
       }
     } catch (e) {
       console.error('Save failed:', e);
-      alert("Failed to save configuration due to a network error.");
+      showNotification("Failed to save configuration due to a network error.", 'error');
     } finally {
       setSaving(false);
     }
@@ -315,6 +322,27 @@ export default function AdminPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 pb-24">
+      {/* ── Notification Banner ────────────────────────────── */}
+      <AnimatePresence>
+        {notification && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 border ${
+              notification.type === 'error' ? 'bg-destructive/10 border-destructive/20 text-destructive' :
+              notification.type === 'info' ? 'bg-primary/10 border-primary/20 text-primary' :
+              'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'
+            }`}
+          >
+            {notification.type === 'error' ? <AlertTriangle size={18} /> : <CheckCircle size={18} />}
+            <p className="text-sm font-bold">{notification.message}</p>
+            <button onClick={() => setNotification(null)} className="ml-2 hover:opacity-70 transition-opacity">
+              <X size={14} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Header ───────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
@@ -695,10 +723,40 @@ export default function AdminPage() {
                         </div>
                       )}
                     </div>
+                    </div>
                   </div>
-                </div>
 
-                <div className="card-base overflow-hidden">
+                  {/* Latest Intelligence Highlight */}
+                  {processedData.length > 0 && (
+                    <div className="card-base p-6 bg-amber-500/5 border-amber-500/20">
+                      <div className="flex items-start gap-4">
+                        <div className="p-3 rounded-xl bg-amber-500/10 text-amber-500">
+                          <Brain size={24} />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-semibold text-foreground">Latest Processed Intelligence</h4>
+                            <span className="text-[10px] text-muted-foreground font-mono">
+                              {formatToWAT(processedData[0].createdAt)}
+                            </span>
+                          </div>
+                          <p className="text-sm text-foreground mt-1 font-medium leading-relaxed">
+                            {processedData[0].summary}
+                          </p>
+                          <div className="mt-3 flex items-center gap-3">
+                            <span className="badge badge-purple text-[10px]">
+                              {Array.isArray(processedData[0].structuredData) ? processedData[0].structuredData.length : 0} Matches Analyzed
+                            </span>
+                            <span className="text-[10px] text-muted-foreground italic">
+                              Node: Neural Consensus v2.1
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="card-base overflow-hidden">
                   <div className="px-6 py-4 border-b border-border flex items-center justify-between">
                     <h3 className="font-semibold text-sm text-foreground flex items-center gap-2">
                       <Database size={16} className="text-cyan-500" /> Scraped Data Memory
