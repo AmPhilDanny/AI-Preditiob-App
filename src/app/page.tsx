@@ -335,54 +335,6 @@ export default function HomePage() {
         )}
       </AnimatePresence>
 
-      {/* ── Stats Overview ──────────────────────────────────── */}
-      <motion.section 
-        className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-12"
-        variants={stagger}
-        initial="hidden"
-        animate="show"
-      >
-        <motion.div variants={fadeUp} className="card-base p-5 flex flex-col gap-1">
-          <div className="flex items-center gap-2 mb-1">
-            <div className="p-1.5 rounded-lg bg-violet-500/10 text-violet-500">
-              <Target size={16} />
-            </div>
-            <p className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">Avg Accuracy</p>
-          </div>
-          <p className="text-3xl font-display font-black text-foreground">78.4%</p>
-        </motion.div>
-
-        <motion.div variants={fadeUp} className="card-base p-5 flex flex-col gap-1">
-          <div className="flex items-center gap-2 mb-1">
-            <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-500">
-              <Brain size={16} />
-            </div>
-            <p className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">AI Confidence</p>
-          </div>
-          <p className="text-3xl font-display font-black text-foreground">12%</p>
-        </motion.div>
-
-        <motion.div variants={fadeUp} className="card-base p-5 flex flex-col gap-1">
-          <div className="flex items-center gap-2 mb-1">
-            <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500">
-              <Activity size={16} />
-            </div>
-            <p className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">System Health</p>
-          </div>
-          <p className="text-3xl font-display font-black text-emerald-500">healthy</p>
-        </motion.div>
-
-        <motion.div variants={fadeUp} className="card-base p-5 flex flex-col gap-1">
-          <div className="flex items-center gap-2 mb-1">
-            <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
-              <TrendingUp size={16} />
-            </div>
-            <p className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">Win Rate</p>
-          </div>
-          <p className="text-3xl font-display font-black text-foreground">84%</p>
-        </motion.div>
-      </motion.section>
-
       {/* ── Hero & Chat ─────────────────────────────────────── */}
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-14">
         
@@ -617,6 +569,54 @@ export default function HomePage() {
         })}
       </motion.section>
 
+      {/* ── Stats Overview ──────────────────────────────────── */}
+      <motion.section 
+        className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-12"
+        variants={stagger}
+        initial="hidden"
+        animate="show"
+      >
+        <motion.div variants={fadeUp} className="card-base p-5 flex flex-col gap-1">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="p-1.5 rounded-lg bg-violet-500/10 text-violet-500">
+              <Target size={16} />
+            </div>
+            <p className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">Avg Accuracy</p>
+          </div>
+          <p className="text-3xl font-display font-black text-foreground">78.4%</p>
+        </motion.div>
+
+        <motion.div variants={fadeUp} className="card-base p-5 flex flex-col gap-1">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-500">
+              <Brain size={16} />
+            </div>
+            <p className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">AI Confidence</p>
+          </div>
+          <p className="text-3xl font-display font-black text-foreground">12%</p>
+        </motion.div>
+
+        <motion.div variants={fadeUp} className="card-base p-5 flex flex-col gap-1">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500">
+              <Activity size={16} />
+            </div>
+            <p className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">System Health</p>
+          </div>
+          <p className="text-3xl font-display font-black text-emerald-500">healthy</p>
+        </motion.div>
+
+        <motion.div variants={fadeUp} className="card-base p-5 flex flex-col gap-1">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+              <TrendingUp size={16} />
+            </div>
+            <p className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">Win Rate</p>
+          </div>
+          <p className="text-3xl font-display font-black text-foreground">84%</p>
+        </motion.div>
+      </motion.section>
+
       {/* ── Error ────────────────────────────────────────────── */}
       {error && (
         <div className="mb-8 flex items-center gap-3 p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm">
@@ -625,28 +625,50 @@ export default function HomePage() {
         </div>
       )}
 
+      {/* ── Awaiting/Present Prediction ─────────────────────── */}
+      <motion.section variants={fadeUp} initial="hidden" animate="show" className="mb-12">
+        {(!data?.slips || data.slips.length === 0) ? (
+          <div className="card-base p-16 flex flex-col items-center gap-4 text-center border-dashed border-2 border-primary/20">
+            <div className="p-4 rounded-full bg-primary/5 text-primary">
+              <Zap size={36} />
+            </div>
+            <div>
+              <p className="font-semibold text-foreground text-lg">Awaiting Prediction Sequence</p>
+              <p className="text-sm text-muted-foreground max-w-sm mx-auto mt-1">
+                Your AI agents are ready to process data. Use the chat assistant or click "Generate Slips" above to start.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="card-base p-8 bg-primary/5 border-primary/30 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-primary/10 text-primary animate-pulse">
+                <Zap size={24} />
+              </div>
+              <div>
+                <p className="font-bold text-foreground">Active Prediction Generated</p>
+                <p className="text-xs text-muted-foreground">Neural consensus reached at {formatToWAT(data.timestamp)}</p>
+              </div>
+            </div>
+            <button onClick={fetchData} className="btn-ghost text-xs gap-2">
+              <RefreshCcw size={14} /> Refresh
+            </button>
+          </div>
+        )}
+      </motion.section>
+
       {/* ── Slip Cards ────────────────────────────────────────── */}
-      {data?.slips && data.slips.length > 0 ? (
+      {data?.slips && data.slips.length > 0 && (
         <motion.section
           variants={stagger}
           initial="hidden"
           animate="show"
-          className="space-y-6"
+          className="space-y-6 mb-16"
         >
           <motion.div variants={fadeUp} className="flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              <div>
-                <h2 className="font-display text-2xl font-black text-foreground">Premium Slips</h2>
-                <p className="text-sm text-muted-foreground mt-1">Latest neural consensus picks</p>
-              </div>
-              <div className="h-10 w-px bg-border hidden sm:block" />
-              <button
-                onClick={() => setShowHistory(prev => !prev)}
-                className={`btn-ghost text-xs px-4 py-2 flex items-center gap-2 rounded-xl border border-border/50 hover:border-primary/30 transition-all ${showHistory ? 'text-primary bg-primary/5 border-primary/20' : ''}`}
-              >
-                <History size={14} />
-                History {slipHistory.length > 0 && <span className="badge badge-purple py-0 px-2 text-[10px] ml-1">{slipHistory.length}</span>}
-              </button>
+            <div>
+              <h2 className="font-display text-2xl font-black text-foreground uppercase tracking-tight">Premium Slips</h2>
+              <p className="text-sm text-muted-foreground mt-1 font-medium">Latest neural consensus picks</p>
             </div>
             <div className="flex items-center gap-2">
               {[2, 5, 10].map(t => (
@@ -678,7 +700,7 @@ export default function HomePage() {
                 <div className="p-6 border-b border-border">
                   <div className="flex items-start justify-between mb-4">
                     <div>
-                      <p className="section-label mb-1">Target {slip.targetOdds}×</p>
+                      <p className="section-label mb-1 uppercase tracking-widest text-[10px]">Target {slip.targetOdds}×</p>
                       <p className="font-display text-3xl font-black text-foreground">
                         {slip.totalOdds}
                         <span className="text-lg text-muted-foreground font-medium ml-1">odds</span>
@@ -703,7 +725,7 @@ export default function HomePage() {
                   {slip.matches.map((m: any, idx: number) => (
                     <div key={idx} className="p-5 hover:bg-secondary/50 transition-colors">
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className="badge badge-purple text-[10px]">{m.prediction}</span>
+                        <span className="badge badge-purple text-[10px] uppercase tracking-tighter">{m.prediction}</span>
                         <span className="font-display font-bold text-foreground text-sm">{m.odds}×</span>
                       </div>
                       <p className="font-semibold text-foreground text-sm mb-1">{m.match}</p>
@@ -714,7 +736,7 @@ export default function HomePage() {
 
                 {/* Card footer */}
                 <div className="p-4 bg-secondary/30">
-                  <button className="btn-secondary w-full justify-center">
+                  <button className="btn-secondary w-full justify-center text-xs font-bold uppercase tracking-widest">
                     Full Analysis <ArrowRight size={14} />
                   </button>
                 </div>
@@ -722,75 +744,77 @@ export default function HomePage() {
             ))}
           </div>
         </motion.section>
-      ) : (
-        !loading && (
-          <div className="card-base p-16 flex flex-col items-center gap-4 text-center">
-            <Zap className="text-muted-foreground" size={36} />
-            <p className="font-semibold text-foreground">Awaiting Prediction Sequence</p>
-            <p className="text-sm text-muted-foreground">Use the chat assistant or click "Generate Slips" above.</p>
-          </div>
-        )
       )}
 
       {/* ── Slip History Panel ─────────────────────────────────── */}
-      {showHistory && (
-        <motion.section
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mt-10 space-y-4"
-        >
-          <div className="flex items-center justify-between">
+      <motion.section
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mt-20 space-y-6"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-6">
             <div>
-              <h2 className="font-display text-xl font-black text-foreground flex items-center gap-2">
-                <History size={18} className="text-primary" /> Generation History
+              <h2 className="font-display text-2xl font-black text-foreground flex items-center gap-3 uppercase tracking-tight">
+                <History size={24} className="text-primary" /> Generation History
               </h2>
-              <p className="text-sm text-muted-foreground mt-0.5">Last {slipHistory.length} generated slip sessions</p>
+              <p className="text-sm text-muted-foreground mt-1 font-medium">Archive of past neural consensus iterations</p>
             </div>
-            {slipHistory.length > 0 && (
-              <button onClick={clearHistory} className="btn-ghost text-xs text-destructive hover:text-destructive px-3 py-1.5 flex items-center gap-1.5">
-                <Trash2 size={12} /> Clear All
-              </button>
-            )}
+            <div className="h-10 w-px bg-border hidden sm:block" />
+            <div className="badge badge-purple px-3 py-1 text-xs">
+              {slipHistory.length} Sessions Stored
+            </div>
           </div>
-
-          {slipHistory.length === 0 ? (
-            <div className="card-base p-10 text-center text-muted-foreground text-sm">
-              No history yet. Generate slips to start tracking.
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {slipHistory.map((entry) => (
-                <div key={entry.id} className="card-base overflow-hidden">
-                  <div className="px-5 py-3 border-b border-border flex items-center justify-between bg-secondary/30">
-                    <div className="flex items-center gap-3">
-                      <span className="badge badge-purple text-[10px]">{entry.provider}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(entry.timestamp).toLocaleString()} · Targets: {entry.targets.join('×, ')}×
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => deleteFromHistory(entry.id)}
-                      className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                  <div className="divide-y divide-border">
-                    {entry.slips.map((slip: any, si: number) => (
-                      <div key={si} className="px-5 py-3 flex items-center gap-4">
-                        <span className="text-xs font-bold text-muted-foreground w-16 shrink-0">Target {slip.targetOdds}×</span>
-                        <span className="font-display font-black text-foreground">{slip.totalOdds}×</span>
-                        <span className="badge badge-purple text-[10px]">{slip.confidence}% conf.</span>
-                        <span className="text-xs text-muted-foreground">{slip.matches?.length || 0} matches</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+          {slipHistory.length > 0 && (
+            <button onClick={clearHistory} className="btn-ghost text-xs text-destructive hover:text-destructive px-3 py-1.5 flex items-center gap-1.5 font-bold uppercase tracking-widest">
+              <Trash2 size={12} /> Clear Database
+            </button>
           )}
-        </motion.section>
-      )}
+        </div>
+
+        {slipHistory.length === 0 ? (
+          <div className="card-base p-16 text-center text-muted-foreground text-sm border-dashed border-2">
+            <div className="flex flex-col items-center gap-3">
+              <Database size={32} className="opacity-20" />
+              <p>No historical generations found. New slips will be archived here.</p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {slipHistory.map((entry) => (
+              <div key={entry.id} className="card-base overflow-hidden group hover:border-primary/30 transition-all">
+                <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-secondary/30">
+                  <div className="flex items-center gap-4">
+                    <span className="badge badge-purple text-[10px] font-black uppercase tracking-widest">{entry.provider}</span>
+                    <span className="text-xs text-muted-foreground font-medium">
+                      {new Date(entry.timestamp).toLocaleString()} · Targets: {entry.targets.join('×, ')}×
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => deleteFromHistory(entry.id)}
+                    className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+                <div className="divide-y divide-border">
+                  {entry.slips.map((slip: any, si: number) => (
+                    <div key={si} className="px-6 py-4 flex items-center gap-6 hover:bg-secondary/20 transition-colors">
+                      <span className="text-[10px] font-black text-muted-foreground w-20 shrink-0 uppercase tracking-widest">Target {slip.targetOdds}×</span>
+                      <span className="font-display font-black text-foreground text-lg">{slip.totalOdds}×</span>
+                      <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden max-w-[100px]">
+                        <div className="h-full bg-primary" style={{ width: `${slip.confidence}%` }} />
+                      </div>
+                      <span className="badge badge-purple text-[10px] font-bold">{slip.confidence}% conf.</span>
+                      <span className="text-xs text-muted-foreground font-medium">{slip.matches?.length || 0} matches analyzed</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </motion.section>
 
       {/* ── Footer ────────────────────────────────────────────── */}
       <footer className="mt-20 pt-8 border-t border-border text-center">
