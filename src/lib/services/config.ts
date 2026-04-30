@@ -89,7 +89,7 @@ class ConfigService {
           gemini: { 
             apiKey: config.geminiApiKey || '', 
             enabled: config.geminiEnabled,
-            model: config.geminiModel || 'gemini-1.5-flash'
+            model: config.geminiModel || 'gemini-2.0-flash'
           },
           grok: { apiKey: config.grokApiKey || '', enabled: config.grokEnabled },
           mistral: { apiKey: config.mistralApiKey || '', enabled: config.mistralEnabled },
@@ -195,7 +195,7 @@ class ConfigService {
         api4: { apiKey: '', enabled: false },
       },
       aiProviders: {
-        gemini: { apiKey: '', enabled: true, model: 'gemini-1.5-flash' },
+        gemini: { apiKey: '', enabled: true, model: 'gemini-2.0-flash' },
         grok: { apiKey: '', enabled: false },
         mistral: { apiKey: '', enabled: false },
       },

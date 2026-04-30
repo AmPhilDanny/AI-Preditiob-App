@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     const aiConfig: AIConfig = {
       provider,
       apiKey,
-      model: provider === 'gemini' ? 'gemini-1.5-flash' : 'latest',
+      model: provider === 'gemini' ? 'gemini-2.0-flash' : 'latest',
       systemPrompt: config.agentPrompts.analyst || "You are an expert football data analyst. Use the provided match data to answer questions about Goal-Goal (GG), Over/Under 2.5, 1X2, and other betting markets. Always be precise and point out high-probability matches."
     };
 
