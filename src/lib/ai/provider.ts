@@ -45,7 +45,7 @@ export class AIFactory {
   private async predictWithGemini(data: any, prompt: string): Promise<PredictionResult> {
     try {
       const genAI = new GoogleGenerativeAI(this.config.apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const model = genAI.getGenerativeModel({ model: this.config.model || "gemini-1.5-flash-latest" });
       
       const input = JSON.stringify(data);
       const result = await model.generateContent([
@@ -76,7 +76,7 @@ export class AIFactory {
     if (this.config.provider === 'gemini') {
       try {
         const genAI = new GoogleGenerativeAI(this.config.apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: this.config.model || "gemini-1.5-flash-latest" });
         
         const input = JSON.stringify(data).substring(0, 30000); // Guard against token limits
         const result = await model.generateContent([
@@ -111,7 +111,7 @@ export class AIFactory {
     if (this.config.provider === 'gemini') {
       try {
         const genAI = new GoogleGenerativeAI(this.config.apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: this.config.model || "gemini-1.5-flash-latest" });
         
         const result = await model.generateContent([
           "Extract match data from this HTML content. Return a JSON array of objects with: match (Home vs Away), odds, reasoning.",

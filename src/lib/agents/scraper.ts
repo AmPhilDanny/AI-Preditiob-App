@@ -95,7 +95,7 @@ export class ScraperAgent {
       const aiConfig: AIConfig = {
         provider: 'gemini',
         apiKey: config.aiProviders.gemini.apiKey,
-        model: 'gemini-1.5-flash',
+        model: 'gemini-1.5-flash-latest',
         systemPrompt: config.agentPrompts.scraper
       };
 
