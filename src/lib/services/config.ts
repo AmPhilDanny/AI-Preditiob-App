@@ -11,7 +11,8 @@ export interface SystemConfig {
   aiProviders: {
     gemini: { apiKey: string; enabled: boolean; model: string };
     grok: { apiKey: string; enabled: boolean };
-    mistral: { apiKey: string; enabled: boolean };
+    mistral: { apiKey: string; enabled: boolean; model: string };
+    g4f: { apiKey: string; enabled: boolean; model: string };
   };
   aiAnalysisEnabled: boolean;
   predictionThreshold: number;
@@ -37,12 +38,10 @@ class ConfigService {
 
   async getConfig(): Promise<SystemConfig> {
     try {
-      // Always look for the 'default' ID first for stability
       let config = await prisma.systemConfig.findUnique({
         where: { id: this.CONFIG_ID }
       });
       
-      // Fallback to findFirst if 'default' isn't set yet (legacy support)
       if (!config) {
         config = await prisma.systemConfig.findFirst();
       }
@@ -68,6 +67,10 @@ class ConfigService {
             grokEnabled: defaults.aiProviders.grok.enabled,
             mistralApiKey: defaults.aiProviders.mistral.apiKey,
             mistralEnabled: defaults.aiProviders.mistral.enabled,
+            mistralModel: defaults.aiProviders.mistral.model,
+            g4fApiKey: defaults.aiProviders.g4f.apiKey,
+            g4fEnabled: defaults.aiProviders.g4f.enabled,
+            g4fModel: defaults.aiProviders.g4f.model,
             aiAnalysisEnabled: defaults.aiAnalysisEnabled,
             predictionThreshold: defaults.predictionThreshold,
             analystPrompt: defaults.agentPrompts.analyst,
@@ -92,7 +95,16 @@ class ConfigService {
             model: config.geminiModel || 'gemini-2.5-flash'
           },
           grok: { apiKey: config.grokApiKey || '', enabled: config.grokEnabled },
-          mistral: { apiKey: config.mistralApiKey || '', enabled: config.mistralEnabled },
+          mistral: { 
+            apiKey: config.mistralApiKey || '', 
+            enabled: config.mistralEnabled,
+            model: (config as any).mistralModel || 'mistral-large-latest'
+          },
+          g4f: {
+            apiKey: (config as any).g4fApiKey || '',
+            enabled: (config as any).g4fEnabled ?? false,
+            model: (config as any).g4fModel || 'gpt-4'
+          }
         },
         aiAnalysisEnabled: config.aiAnalysisEnabled,
         predictionThreshold: config.predictionThreshold,
@@ -124,6 +136,7 @@ class ConfigService {
         gemini:  { ...current.aiProviders.gemini,  ...updates.aiProviders?.gemini },
         grok:    { ...current.aiProviders.grok,    ...updates.aiProviders?.grok },
         mistral: { ...current.aiProviders.mistral, ...updates.aiProviders?.mistral },
+        g4f:     { ...current.aiProviders.g4f,     ...updates.aiProviders?.g4f },
       },
       agentPrompts: {
         analyst: updates.agentPrompts?.analyst ?? current.agentPrompts.analyst,
@@ -152,6 +165,10 @@ class ConfigService {
         grokEnabled: merged.aiProviders.grok.enabled,
         mistralApiKey: merged.aiProviders.mistral.apiKey,
         mistralEnabled: merged.aiProviders.mistral.enabled,
+        mistralModel: merged.aiProviders.mistral.model,
+        g4fApiKey: merged.aiProviders.g4f.apiKey,
+        g4fEnabled: merged.aiProviders.g4f.enabled,
+        g4fModel: merged.aiProviders.g4f.model,
         aiAnalysisEnabled: merged.aiAnalysisEnabled,
         predictionThreshold: merged.predictionThreshold,
         analystPrompt: merged.agentPrompts.analyst,
@@ -176,6 +193,10 @@ class ConfigService {
         grokEnabled: merged.aiProviders.grok.enabled,
         mistralApiKey: merged.aiProviders.mistral.apiKey,
         mistralEnabled: merged.aiProviders.mistral.enabled,
+        mistralModel: merged.aiProviders.mistral.model,
+        g4fApiKey: merged.aiProviders.g4f.apiKey,
+        g4fEnabled: merged.aiProviders.g4f.enabled,
+        g4fModel: merged.aiProviders.g4f.model,
         aiAnalysisEnabled: merged.aiAnalysisEnabled,
         predictionThreshold: merged.predictionThreshold,
         analystPrompt: merged.agentPrompts.analyst,
@@ -197,7 +218,8 @@ class ConfigService {
       aiProviders: {
         gemini: { apiKey: '', enabled: true, model: 'gemini-2.5-flash' },
         grok: { apiKey: '', enabled: false },
-        mistral: { apiKey: '', enabled: false },
+        mistral: { apiKey: '', enabled: false, model: 'mistral-large-latest' },
+        g4f: { apiKey: '', enabled: false, model: 'gpt-4' },
       },
       aiAnalysisEnabled: true,
       predictionThreshold: 75,

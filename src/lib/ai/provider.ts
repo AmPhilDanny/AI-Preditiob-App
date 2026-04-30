@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Mistral } from "@mistralai/mistralai";
 
-export type AIProvider = 'gemini' | 'grok' | 'mistral';
+export type AIProvider = 'gemini' | 'grok' | 'mistral' | 'g4f';
 
 export interface AIConfig {
   provider: AIProvider;
@@ -47,6 +47,35 @@ async function callMistral(apiKey: string, model: string, systemPrompt: string, 
   return response.choices?.[0]?.message?.content as string || '';
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// G4F (GPT4Free) helper
+// ──────────────────────────────────────────────────────────────────────────────
+async function callG4F(apiKey: string, model: string, systemPrompt: string, userContent: string): Promise<string> {
+  // Using the G4F.dev / g4f.space OpenAI-compatible API
+  const response = await fetch('https://g4f.space/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: model || 'gpt-4',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userContent }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`G4F API Error: ${err}`);
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || '';
+}
+
 export class AIFactory {
   private config: AIConfig;
 
@@ -54,16 +83,11 @@ export class AIFactory {
     this.config = config;
   }
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // PROCESS: main method used by the chat and processor agents
-  // Tries primary provider first, falls back to secondary on error
-  // ────────────────────────────────────────────────────────────────────────────
   async process(data: any, userPrompt?: string): Promise<any> {
     const systemPrompt = this.config.systemPrompt || "You are an expert football analyst. Provide clear, data-driven betting insights.";
     const fullPrompt = userPrompt ? `${systemPrompt}\n\nUser Request: ${userPrompt}` : systemPrompt;
     const inputJson = JSON.stringify(data).substring(0, 30000);
 
-    // Try primary provider
     const primaryResult = await this._tryProcess(
       this.config.provider,
       this.config.apiKey,
@@ -74,13 +98,12 @@ export class AIFactory {
 
     if (primaryResult.success) return primaryResult;
 
-    // Fallback to secondary provider if configured
     if (this.config.fallbackProvider && this.config.fallbackApiKey) {
       console.log(`[AI] Primary provider failed, switching to fallback: ${this.config.fallbackProvider}`);
       const fallbackResult = await this._tryProcess(
         this.config.fallbackProvider,
         this.config.fallbackApiKey,
-        this.config.fallbackModel || 'mistral-large-latest',
+        this.config.fallbackModel,
         fullPrompt,
         inputJson
       );
@@ -88,7 +111,7 @@ export class AIFactory {
     }
 
     return {
-      summary: primaryResult.summary, // return the original error message
+      summary: primaryResult.summary,
       structuredData: data,
       success: false
     };
@@ -111,12 +134,9 @@ export class AIFactory {
           inputJson
         ]);
       } else if (provider === 'mistral') {
-        text = await callMistral(
-          apiKey,
-          model || 'mistral-large-latest',
-          fullPrompt,
-          `Analyze this match data and answer the user's question:\n\n${inputJson}`
-        );
+        text = await callMistral(apiKey, model || 'mistral-large-latest', fullPrompt, `Analyze this match data:\n\n${inputJson}`);
+      } else if (provider === 'g4f') {
+        text = await callG4F(apiKey, model || 'gpt-4', fullPrompt, `Analyze this match data:\n\n${inputJson}`);
       } else {
         return { summary: `Provider '${provider}' not yet implemented.`, structuredData: {}, success: false };
       }
@@ -127,23 +147,15 @@ export class AIFactory {
         success: true
       };
     } catch (err: any) {
-      const isQuota = err.message?.includes('429') || err.message?.includes('quota') || err.message?.includes('rate');
-      const errMsg = isQuota
-        ? `⚠️ ${provider === 'gemini' ? 'Gemini' : 'Mistral'} quota exceeded. ${this.config.fallbackProvider ? 'Switching to backup provider...' : 'Please try again later or add a Mistral API key as backup.'}`
-        : `AI Processing Failed (${provider}): ${err.message || 'Unknown Error'}`;
-
       console.error(`[AI] ${provider} error:`, err.message);
       return {
-        summary: errMsg,
+        summary: `AI Processing Failed (${provider}): ${err.message || 'Unknown Error'}`,
         structuredData: {},
         success: false
       };
     }
   }
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // PREDICT: for individual match prediction cards
-  // ────────────────────────────────────────────────────────────────────────────
   async predict(matchData: any, userPrompt?: string): Promise<PredictionResult> {
     const prompt = this.config.systemPrompt || "Predict the outcome of this football match.";
     const fullPrompt = userPrompt ? `${prompt}\n\nUser Request: ${userPrompt}` : prompt;
@@ -152,17 +164,12 @@ export class AIFactory {
       let text = '';
       if (this.config.provider === 'gemini') {
         text = await callGemini(this.config.apiKey, this.config.model || 'gemini-2.5-flash', [
-          fullPrompt,
-          "Return a JSON object with: match, prediction, odds, probability (0-1), reasoning.",
-          JSON.stringify(matchData)
+          fullPrompt, "Return a JSON object with: match, prediction, odds, probability (0-1), reasoning.", JSON.stringify(matchData)
         ]);
       } else if (this.config.provider === 'mistral') {
-        text = await callMistral(
-          this.config.apiKey,
-          this.config.model || 'mistral-large-latest',
-          fullPrompt,
-          `Return a JSON object with: match, prediction, odds, probability (0-1), reasoning. Data: ${JSON.stringify(matchData)}`
-        );
+        text = await callMistral(this.config.apiKey, this.config.model || 'mistral-large-latest', fullPrompt, `Return a JSON object with data: ${JSON.stringify(matchData)}`);
+      } else if (this.config.provider === 'g4f') {
+        text = await callG4F(this.config.apiKey, this.config.model || 'gpt-4', fullPrompt, `Return a JSON object with data: ${JSON.stringify(matchData)}`);
       }
 
       return JSON.parse(text.replace(/```json|```/g, '').trim());
@@ -178,24 +185,16 @@ export class AIFactory {
     }
   }
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // EXTRACT FROM HTML: for web scraper
-  // ────────────────────────────────────────────────────────────────────────────
   async extractFromHtml(html: string): Promise<PredictionResult[]> {
     const prompt = "Extract match data from this HTML content. Return a JSON array of objects with: match (Home vs Away), odds, reasoning.";
     try {
       let text = '';
       if (this.config.provider === 'gemini') {
-        text = await callGemini(this.config.apiKey, this.config.model || 'gemini-2.5-flash', [
-          prompt, html.substring(0, 20000)
-        ]);
+        text = await callGemini(this.config.apiKey, this.config.model || 'gemini-2.5-flash', [prompt, html.substring(0, 20000)]);
       } else if (this.config.provider === 'mistral') {
-        text = await callMistral(
-          this.config.apiKey,
-          this.config.model || 'mistral-large-latest',
-          prompt,
-          html.substring(0, 20000)
-        );
+        text = await callMistral(this.config.apiKey, this.config.model || 'mistral-large-latest', prompt, html.substring(0, 20000));
+      } else if (this.config.provider === 'g4f') {
+        text = await callG4F(this.config.apiKey, this.config.model || 'gpt-4', prompt, html.substring(0, 20000));
       }
       return JSON.parse(text.replace(/```json|```/g, '').trim());
     } catch (err) {

@@ -1073,7 +1073,7 @@ export default function AdminPage() {
                       </h3>
                     </div>
                     <div className="p-6 space-y-6">
-                      {['gemini', 'grok', 'mistral'].map(id => (
+                      {['gemini', 'mistral', 'g4f', 'grok'].map(id => (
                         <div key={id} className="space-y-2">
                           <div className="flex items-center justify-between">
                             <label className="section-label capitalize">{id} Access Key</label>
@@ -1112,22 +1112,24 @@ export default function AdminPage() {
                             </button>
                           </div>
                           
-                          {/* Model selection for Gemini */}
-                          {id === 'gemini' && (
+                          {/* Model selection for AI providers */}
+                          {(id === 'gemini' || id === 'mistral' || id === 'g4f') && (
                             <div className="mt-3 space-y-1.5">
                               <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight">Active Model</label>
                               <input
                                 type="text"
-                                value={config?.aiProviders?.gemini?.model || ''}
+                                value={config?.aiProviders?.[id]?.model || ''}
                                 onChange={e => {
-                                  const u = { ...config.aiProviders, gemini: { ...config.aiProviders.gemini, model: e.target.value } };
+                                  const u = { ...config.aiProviders, [id]: { ...config.aiProviders[id], model: e.target.value } };
                                   setConfig({ ...config, aiProviders: u });
                                 }}
                                 className="form-input text-xs"
-                                placeholder="e.g. gemini-1.5-flash"
+                                placeholder={`e.g. ${id === 'gemini' ? 'gemini-2.0-flash' : id === 'mistral' ? 'mistral-large-latest' : 'gpt-4'}`}
                               />
                               <p className="text-[10px] text-muted-foreground/60 italic">
-                                Use "gemini-1.5-flash", "gemini-1.5-pro", or "gemini-2.0-flash"
+                                {id === 'gemini' ? 'Use "gemini-1.5-flash", "gemini-2.0-flash", "gemini-2.5-flash"' : 
+                                 id === 'mistral' ? 'Use "mistral-large-latest", "open-mixtral-8x22b"' : 
+                                 'Use "gpt-4", "gpt-3.5-turbo", "claude-v2"'}
                               </p>
                             </div>
                           )}
