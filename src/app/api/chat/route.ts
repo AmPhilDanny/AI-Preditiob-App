@@ -8,8 +8,8 @@ export async function POST(request: Request) {
     const { message, history = [] } = await request.json();
     const config = await configService.getConfig();
 
-    // ── Primary provider: pick first enabled AI ─────────────────────────────
-    let provider: 'gemini' | 'grok' | 'mistral' = 'gemini';
+    // ── Primary provider selection ──────────────────────────────────────────
+    let provider: 'gemini' | 'grok' | 'mistral' | 'openrouter' = 'gemini';
     let apiKey = '';
     let model = 'gemini-2.5-flash';
 
@@ -20,26 +20,36 @@ export async function POST(request: Request) {
     } else if (config.aiProviders.mistral.enabled && config.aiProviders.mistral.apiKey) {
       provider = 'mistral';
       apiKey = config.aiProviders.mistral.apiKey;
-      model = 'mistral-large-latest';
+      model = config.aiProviders.mistral.model || 'mistral-large-latest';
+    } else if (config.aiProviders.openrouter.enabled && config.aiProviders.openrouter.apiKey) {
+      provider = 'openrouter';
+      apiKey = config.aiProviders.openrouter.apiKey;
+      model = config.aiProviders.openrouter.model || 'google/gemini-2.0-flash-001';
     }
 
     if (!apiKey) {
       return NextResponse.json({
         success: true,
-        reply: '⚠️ No AI provider is configured. Please add a Gemini or Mistral API key in the Admin Panel → Vault tab.',
+        reply: '⚠️ No AI provider is configured. Please add a Gemini, Mistral, or OpenRouter API key in the Admin Panel → Vault tab.',
         timestamp: new Date().toISOString()
       });
     }
 
-    // ── Fallback: if Gemini is primary, use Mistral as backup ───────────────
-    let fallbackProvider: 'mistral' | undefined;
+    // ── Fallback selection (Gemini -> Mistral -> OpenRouter) ────────────────────────
+    let fallbackProvider: 'mistral' | 'openrouter' | undefined;
     let fallbackApiKey: string | undefined;
     let fallbackModel: string | undefined;
 
-    if (provider === 'gemini' && config.aiProviders.mistral.enabled && config.aiProviders.mistral.apiKey) {
-      fallbackProvider = 'mistral';
-      fallbackApiKey = config.aiProviders.mistral.apiKey;
-      fallbackModel = 'mistral-large-latest';
+    if (provider === 'gemini') {
+      if (config.aiProviders.mistral.enabled && config.aiProviders.mistral.apiKey) {
+        fallbackProvider = 'mistral';
+        fallbackApiKey = config.aiProviders.mistral.apiKey;
+        fallbackModel = config.aiProviders.mistral.model || 'mistral-large-latest';
+      } else if (config.aiProviders.openrouter.enabled && config.aiProviders.openrouter.apiKey) {
+        fallbackProvider = 'openrouter';
+        fallbackApiKey = config.aiProviders.openrouter.apiKey;
+        fallbackModel = config.aiProviders.openrouter.model || 'google/gemini-2.0-flash-001';
+      }
     }
 
     const aiConfig: AIConfig = {
