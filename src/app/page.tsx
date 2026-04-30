@@ -156,6 +156,24 @@ export default function HomePage() {
     setTimeout(() => setNotification(null), 5000);
   };
 
+  const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
+
+  const updateSlipStatus = async (id: string, status: 'WIN' | 'LOSS' | 'PENDING') => {
+    try {
+      const res = await fetch('/api/history', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status })
+      });
+      if (res.ok) {
+        showNotification(`Slip marked as ${status}`, 'success');
+        fetchHistory(); // Refresh to show updated status
+      }
+    } catch (e) {
+      console.error('Failed to update slip status', e);
+    }
+  };
+
   const [scrapingUrls, setScrapingUrls] = useState<string[]>([]);
 
   const scrollToBottom = () => {
@@ -780,39 +798,93 @@ export default function HomePage() {
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
-            {slipHistory.map((entry) => (
-              <div key={entry.id} className="card-base overflow-hidden group hover:border-primary/30 transition-all">
-                <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-secondary/30">
-                  <div className="flex items-center gap-4">
-                    <span className="badge badge-purple text-[10px] font-black uppercase tracking-widest">{entry.provider}</span>
-                    <span className="text-xs text-muted-foreground font-medium">
-                      {new Date(entry.timestamp).toLocaleString()} · Targets: {entry.targets.join('×, ')}×
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => deleteFromHistory(entry.id)}
-                    className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+            <div className="space-y-4">
+              {slipHistory.map((entry) => (
+                <div key={entry.id} className="card-base overflow-hidden group hover:border-primary/30 transition-all">
+                  <div 
+                    className="px-6 py-4 border-b border-border flex items-center justify-between bg-secondary/30 cursor-pointer hover:bg-secondary/50 transition-colors"
+                    onClick={() => setExpandedSessionId(expandedSessionId === entry.id ? null : entry.id)}
                   >
-                    <X size={16} />
-                  </button>
-                </div>
-                <div className="divide-y divide-border">
-                  {entry.slips.map((slip: any, si: number) => (
-                    <div key={si} className="px-6 py-4 flex items-center gap-6 hover:bg-secondary/20 transition-colors">
-                      <span className="text-[10px] font-black text-muted-foreground w-20 shrink-0 uppercase tracking-widest">Target {slip.targetOdds}×</span>
-                      <span className="font-display font-black text-foreground text-lg">{slip.totalOdds}×</span>
-                      <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden max-w-[100px]">
-                        <div className="h-full bg-primary" style={{ width: `${slip.confidence}%` }} />
+                    <div className="flex items-center gap-4">
+                      <div className={`p-1.5 rounded-lg bg-primary/10 text-primary transition-transform ${expandedSessionId === entry.id ? 'rotate-90' : ''}`}>
+                        <ChevronRight size={16} />
                       </div>
-                      <span className="badge badge-purple text-[10px] font-bold">{slip.confidence}% conf.</span>
-                      <span className="text-xs text-muted-foreground font-medium">{slip.matches?.length || 0} matches analyzed</span>
+                      <span className="badge badge-purple text-[10px] font-black uppercase tracking-widest">{entry.provider}</span>
+                      <span className="text-xs text-muted-foreground font-medium">
+                        {new Date(entry.timestamp).toLocaleString()} · Targets: {entry.targets.join('×, ')}×
+                      </span>
                     </div>
-                  ))}
+                    <div className="flex items-center gap-4">
+                      <div className="badge badge-purple px-2 py-0.5 text-[10px]">
+                        {entry.slips.length} Slips
+                      </div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); deleteFromHistory(entry.id); }}
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <AnimatePresence>
+                    {expandedSessionId === entry.id && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="divide-y divide-border">
+                          {entry.slips.map((slip: any, si: number) => (
+                            <div key={si} className="p-6 space-y-4 hover:bg-secondary/20 transition-colors">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                  <span className="text-[10px] font-black text-muted-foreground w-20 shrink-0 uppercase tracking-widest">Target {slip.targetOdds}×</span>
+                                  <span className="font-display font-black text-foreground text-xl">{slip.totalOdds}×</span>
+                                  <span className="badge badge-purple text-[10px] font-bold">{slip.confidence}% conf.</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => updateSlipStatus(slip.id, 'WIN')}
+                                    className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all border ${
+                                      slip.status === 'WIN' ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20'
+                                    }`}
+                                  >
+                                    WIN
+                                  </button>
+                                  <button
+                                    onClick={() => updateSlipStatus(slip.id, 'LOSS')}
+                                    className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all border ${
+                                      slip.status === 'LOSS' ? 'bg-destructive text-white border-destructive' : 'bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/20'
+                                    }`}
+                                  >
+                                    LOSS
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {slip.matches?.map((m: any, mi: number) => (
+                                  <div key={mi} className="p-3 rounded-xl bg-background/50 border border-border/50">
+                                    <div className="flex items-center justify-between mb-1">
+                                      <span className="text-[8px] font-black text-primary uppercase">{m.prediction}</span>
+                                      <span className="text-[8px] font-mono text-muted-foreground">{m.odds}×</span>
+                                    </div>
+                                    <p className="text-[11px] font-bold text-foreground truncate">{m.match}</p>
+                                    <p className="text-[9px] text-muted-foreground line-clamp-1 mt-0.5">{m.reasoning}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
         )}
       </motion.section>
 
