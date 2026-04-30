@@ -51,6 +51,8 @@ export default function HomePage() {
     hasProcessed: false
   });
 
+  const [scrapingUrls, setScrapingUrls] = useState<string[]>([]);
+
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -140,6 +142,7 @@ export default function HomePage() {
       if (h) {
         setAgents(prev => ({ ...prev, health: { status: 'online', lastRun: new Date().toISOString() } }));
         if (h.storage) setStorage({ hasScraped: h.storage.hasScraped, hasProcessed: h.storage.hasProcessed });
+        if (h.urls) setScrapingUrls(h.urls);
       }
     });
 
@@ -147,6 +150,7 @@ export default function HomePage() {
     const t = setInterval(() => {
       fetch('/api/admin/health').then(r => r.json()).then(h => {
         if (h?.storage) setStorage({ hasScraped: h.storage.hasScraped, hasProcessed: h.storage.hasProcessed });
+        if (h.urls) setScrapingUrls(h.urls);
       });
     }, 30000);
 
@@ -339,6 +343,24 @@ export default function HomePage() {
                   <p className="text-[8px] text-muted-foreground/60 font-mono">
                     {formatToWAT(state.lastRun)}
                   </p>
+                )}
+
+                {/* Display URLs for Scraper */}
+                {agent.id === 'scraper' && scrapingUrls.length > 0 && (
+                  <div className="mt-3 space-y-1">
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-tighter">Active Targets</p>
+                    <div className="flex flex-col gap-1">
+                      {scrapingUrls.slice(0, 3).map((url, idx) => (
+                        <div key={idx} className="flex items-center gap-1 text-[8px] text-cyan-500/80 truncate font-mono">
+                          <Globe size={8} />
+                          {new URL(url).hostname}
+                        </div>
+                      ))}
+                      {scrapingUrls.length > 3 && (
+                        <p className="text-[8px] text-muted-foreground italic">+{scrapingUrls.length - 3} more...</p>
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
 

@@ -18,6 +18,9 @@ export class HealthAgent {
       dbStatus = 'offline';
     }
 
+    const { configService } = await import('./config');
+    const config = await configService.getConfig();
+
     return {
       status: dbStatus === 'online' ? 'healthy' : 'degraded',
       database: dbStatus,
@@ -27,6 +30,7 @@ export class HealthAgent {
         scrapedCount: counts.scraped,
         processedCount: counts.processed
       },
+      urls: config.scrapingUrls || [],
       apiUsage: {
         gemini: '12%',
         grok: '5%',
