@@ -24,6 +24,7 @@ export interface SystemConfig {
 
 class ConfigService {
   private static instance: ConfigService;
+  private readonly CONFIG_ID = 'default';
 
   private constructor() {}
 
@@ -36,41 +37,44 @@ class ConfigService {
 
   async getConfig(): Promise<SystemConfig> {
     try {
-      const config = await prisma.systemConfig.findFirst();
+      // Always look for the 'default' ID first for stability
+      let config = await prisma.systemConfig.findUnique({
+        where: { id: this.CONFIG_ID }
+      });
       
+      // Fallback to findFirst if 'default' isn't set yet (legacy support)
+      if (!config) {
+        config = await prisma.systemConfig.findFirst();
+      }
+
       if (!config) {
         const defaults = this.getDefaultConfig();
-        try {
-          await prisma.systemConfig.create({
-            data: {
-              id: 'default',
-              scrapingUrls: defaults.scrapingUrls,
-              footballApiKey1: defaults.footballApis.api1.apiKey,
-              footballApi1Enabled: defaults.footballApis.api1.enabled,
-              footballApiKey2: defaults.footballApis.api2.apiKey,
-              footballApi2Enabled: defaults.footballApis.api2.enabled,
-              footballApiKey3: defaults.footballApis.api3.apiKey,
-              footballApi3Enabled: defaults.footballApis.api3.enabled,
-              footballApiKey4: defaults.footballApis.api4.apiKey,
-              footballApi4Enabled: defaults.footballApis.api4.enabled,
-              geminiApiKey: defaults.aiProviders.gemini.apiKey,
-              geminiEnabled: defaults.aiProviders.gemini.enabled,
-              geminiModel: defaults.aiProviders.gemini.model,
-              grokApiKey: defaults.aiProviders.grok.apiKey,
-              grokEnabled: defaults.aiProviders.grok.enabled,
-              mistralApiKey: defaults.aiProviders.mistral.apiKey,
-              mistralEnabled: defaults.aiProviders.mistral.enabled,
-              aiAnalysisEnabled: defaults.aiAnalysisEnabled,
-              predictionThreshold: defaults.predictionThreshold,
-              analystPrompt: defaults.agentPrompts.analyst,
-              scraperPrompt: defaults.agentPrompts.scraper,
-              processorPrompt: defaults.agentPrompts.processor,
-            }
-          });
-        } catch (createError) {
-          console.warn('Could not create default config row:', createError);
-        }
-        return defaults;
+        config = await prisma.systemConfig.create({
+          data: {
+            id: this.CONFIG_ID,
+            scrapingUrls: defaults.scrapingUrls,
+            footballApiKey1: defaults.footballApis.api1.apiKey,
+            footballApi1Enabled: defaults.footballApis.api1.enabled,
+            footballApiKey2: defaults.footballApis.api2.apiKey,
+            footballApi2Enabled: defaults.footballApis.api2.enabled,
+            footballApiKey3: defaults.footballApis.api3.apiKey,
+            footballApi3Enabled: defaults.footballApis.api3.enabled,
+            footballApiKey4: defaults.footballApis.api4.apiKey,
+            footballApi4Enabled: defaults.footballApis.api4.enabled,
+            geminiApiKey: defaults.aiProviders.gemini.apiKey,
+            geminiEnabled: defaults.aiProviders.gemini.enabled,
+            geminiModel: defaults.aiProviders.gemini.model,
+            grokApiKey: defaults.aiProviders.grok.apiKey,
+            grokEnabled: defaults.aiProviders.grok.enabled,
+            mistralApiKey: defaults.aiProviders.mistral.apiKey,
+            mistralEnabled: defaults.aiProviders.mistral.enabled,
+            aiAnalysisEnabled: defaults.aiAnalysisEnabled,
+            predictionThreshold: defaults.predictionThreshold,
+            analystPrompt: defaults.agentPrompts.analyst,
+            scraperPrompt: defaults.agentPrompts.scraper,
+            processorPrompt: defaults.agentPrompts.processor,
+          }
+        });
       }
 
       return {
@@ -130,7 +134,7 @@ class ConfigService {
     };
 
     return prisma.systemConfig.upsert({
-      where: { id: 'default' },
+      where: { id: this.CONFIG_ID },
       update: {
         scrapingUrls: merged.scrapingUrls,
         footballApiKey1: merged.footballApis.api1.apiKey,
@@ -155,7 +159,7 @@ class ConfigService {
         processorPrompt: merged.agentPrompts.processor,
       },
       create: {
-        id: 'default',
+        id: this.CONFIG_ID,
         scrapingUrls: merged.scrapingUrls,
         footballApiKey1: merged.footballApis.api1.apiKey,
         footballApi1Enabled: merged.footballApis.api1.enabled,
@@ -198,8 +202,8 @@ class ConfigService {
       aiAnalysisEnabled: true,
       predictionThreshold: 75,
       agentPrompts: {
-        analyst: 'You are a professional football betting analyst...',
-        scraper: 'Filter for today matches only...',
+        analyst: 'You are a professional football betting analyst. Use the provided match data to answer questions about Goal-Goal (GG), Over/Under 2.5, 1X2, and other betting markets. Always be precise and point out high-probability matches.',
+        scraper: 'Filter for today matches only. Extract match data including teams, leagues, and odds.',
         processor: 'You are an expert data processor. Your job is to take raw match data and organize it into a clean, structured format for analysis. Sort matches by league and time, and ensure all stats are normalized.'
       }
     };
