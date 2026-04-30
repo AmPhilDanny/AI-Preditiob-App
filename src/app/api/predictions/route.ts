@@ -8,7 +8,7 @@ import prisma from '@/lib/prisma';
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const targetStr = searchParams.get('targets');
-  const userPrompt = searchParams.get('prompt') || undefined;
+  const chatContext = searchParams.get('chatContext') || undefined;
   const targets = targetStr ? targetStr.split(',').map(Number) : [2, 5, 10];
 
   const config = await configService.getConfig();
@@ -77,7 +77,7 @@ export async function GET(request: Request) {
       sourceType: 'api' as const
     }));
 
-    const slips = await analyst.generateSlips(matchData, targets, userPrompt);
+    const slips = await analyst.generateSlips(matchData, targets, chatContext);
     const systemHealth = await health.checkSystemHealth();
 
     await Promise.all(slips.map(slip =>

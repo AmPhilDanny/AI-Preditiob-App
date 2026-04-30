@@ -153,6 +153,16 @@ export default function HomePage() {
     try {
       const url = new URL('/api/predictions', window.location.origin);
       url.searchParams.set('targets', targets.join(','));
+
+      // Pass last AI chat messages as context so predictions factor in the conversation
+      const assistantMessages = messages
+        .filter(m => m.role === 'assistant')
+        .slice(-3) // last 3 AI replies
+        .map(m => m.content)
+        .join('\n\n---\n\n');
+      if (assistantMessages.length > 50) {
+        url.searchParams.set('chatContext', assistantMessages.substring(0, 2000));
+      }
       
       const res  = await fetch(url.toString());
       const json = await res.json();
