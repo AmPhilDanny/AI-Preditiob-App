@@ -48,6 +48,22 @@ export default function AdminPage() {
   const [isCleaning, setIsCleaning] = useState(false);
   const [saving,   setSaving]   = useState(false);
   const [saved,    setSaved]    = useState(false);
+  
+  // Tab persistence
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    if (tab && TABS.some(t => t.id === tab)) {
+      setActive(tab);
+    }
+  }, []);
+
+  const handleTabChange = (id: string) => {
+    setActive(id);
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', id);
+    window.history.replaceState({}, '', url);
+  };
   const [showKey,  setShowKey]  = useState<Record<string, boolean>>({});
   const [testing,  setTesting]  = useState<Record<string, boolean>>({});
   const [testRes,  setTestRes]  = useState<Record<string, { success: boolean; msg: string }>>({});
@@ -345,7 +361,7 @@ export default function AdminPage() {
             {TABS.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
-                onClick={() => setActive(id)}
+                onClick={() => handleTabChange(id)}
                 className={active === id ? 'sidebar-item-active' : 'sidebar-item'}
               >
                 <Icon size={16} className="shrink-0" />
