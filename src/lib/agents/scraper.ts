@@ -78,7 +78,14 @@ export class ScraperAgent {
       const config = await configService.getConfig();
       const webMatches: MatchData[] = [];
       
-      const response = await axios.get(url, { timeout: 10000 });
+      const response = await axios.get(url, { 
+        timeout: 10000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+        }
+      });
       const html = response.data;
       const $ = cheerio.load(html);
       
@@ -91,6 +98,10 @@ export class ScraperAgent {
         model: 'gemini-1.5-flash',
         systemPrompt: config.agentPrompts.scraper
       };
+
+      if (!aiConfig.apiKey) {
+        throw new Error('Gemini API Key is missing. Please configure it in the Scraping Config tab.');
+      }
       
       const ai = new AIFactory(aiConfig);
       const extracted = await ai.extractFromHtml(cleanContent);

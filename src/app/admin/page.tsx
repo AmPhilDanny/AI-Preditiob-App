@@ -191,10 +191,11 @@ export default function AdminPage() {
         alert(`Successfully scraped ${data.count} records from ${target}`);
         loadScrapedData();
       } else {
-        alert(`Scraping failed: ${data.error}`);
+        alert(`Scraping failed: ${data.details || data.error}`);
       }
     } catch (e) {
       console.error('Failed to trigger targeted scrape:', e);
+      alert('Network or server error occurred while trying to scrape.');
     } finally {
       setIsScrapingTarget(null);
     }
