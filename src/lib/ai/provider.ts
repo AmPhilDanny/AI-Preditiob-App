@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { Mistral } from "@mistralai/mistralai";
 
 export type AIProvider = 'gemini' | 'grok' | 'mistral';
 
@@ -7,6 +8,10 @@ export interface AIConfig {
   apiKey: string;
   model: string;
   systemPrompt?: string;
+  // Fallback provider config
+  fallbackProvider?: AIProvider;
+  fallbackApiKey?: string;
+  fallbackModel?: string;
 }
 
 export interface PredictionResult {
@@ -17,6 +22,31 @@ export interface PredictionResult {
   reasoning: string;
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Gemini helper
+// ──────────────────────────────────────────────────────────────────────────────
+async function callGemini(apiKey: string, model: string, parts: string[]): Promise<string> {
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const geminiModel = genAI.getGenerativeModel({ model });
+  const result = await geminiModel.generateContent(parts);
+  return result.response.text();
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Mistral helper
+// ──────────────────────────────────────────────────────────────────────────────
+async function callMistral(apiKey: string, model: string, systemPrompt: string, userContent: string): Promise<string> {
+  const client = new Mistral({ apiKey });
+  const response = await client.chat.complete({
+    model: model || 'mistral-large-latest',
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userContent }
+    ],
+  });
+  return response.choices?.[0]?.message?.content as string || '';
+}
+
 export class AIFactory {
   private config: AIConfig;
 
@@ -24,107 +54,153 @@ export class AIFactory {
     this.config = config;
   }
 
-  async predict(matchData: any, userPrompt?: string): Promise<PredictionResult> {
-    const prompt = this.config.systemPrompt || "Predict the outcome of this football match.";
-    const fullPrompt = userPrompt ? `${prompt}\n\nUser Request: ${userPrompt}` : prompt;
-    
-    if (this.config.provider === 'gemini') {
-      return this.predictWithGemini(matchData, fullPrompt);
+  // ────────────────────────────────────────────────────────────────────────────
+  // PROCESS: main method used by the chat and processor agents
+  // Tries primary provider first, falls back to secondary on error
+  // ────────────────────────────────────────────────────────────────────────────
+  async process(data: any, userPrompt?: string): Promise<any> {
+    const systemPrompt = this.config.systemPrompt || "You are an expert football analyst. Provide clear, data-driven betting insights.";
+    const fullPrompt = userPrompt ? `${systemPrompt}\n\nUser Request: ${userPrompt}` : systemPrompt;
+    const inputJson = JSON.stringify(data).substring(0, 30000);
+
+    // Try primary provider
+    const primaryResult = await this._tryProcess(
+      this.config.provider,
+      this.config.apiKey,
+      this.config.model,
+      fullPrompt,
+      inputJson
+    );
+
+    if (primaryResult.success) return primaryResult;
+
+    // Fallback to secondary provider if configured
+    if (this.config.fallbackProvider && this.config.fallbackApiKey) {
+      console.log(`[AI] Primary provider failed, switching to fallback: ${this.config.fallbackProvider}`);
+      const fallbackResult = await this._tryProcess(
+        this.config.fallbackProvider,
+        this.config.fallbackApiKey,
+        this.config.fallbackModel || 'mistral-large-latest',
+        fullPrompt,
+        inputJson
+      );
+      if (fallbackResult.success) return { ...fallbackResult, usedFallback: true };
     }
-    
-    // Fallback for other providers (if not yet implemented)
+
     return {
-      match: matchData.homeTeam + " vs " + matchData.awayTeam,
-      prediction: "Analysis Pending",
-      odds: 1.0,
-      probability: 0.5,
-      reasoning: "AI Provider not fully implemented for predictions."
+      summary: primaryResult.summary, // return the original error message
+      structuredData: data,
+      success: false
     };
   }
 
-  private async predictWithGemini(data: any, prompt: string): Promise<PredictionResult> {
+  private async _tryProcess(
+    provider: AIProvider,
+    apiKey: string,
+    model: string,
+    fullPrompt: string,
+    inputJson: string
+  ): Promise<any> {
     try {
-      const genAI = new GoogleGenerativeAI(this.config.apiKey);
-      const model = genAI.getGenerativeModel({ model: this.config.model || "gemini-2.5-flash" });
-      
-      const input = JSON.stringify(data);
-      const result = await model.generateContent([
-        prompt,
-        "Return a JSON object with: match, prediction, odds, probability (0-1), reasoning.",
-        input
-      ]);
-      const text = result.response.text();
-      const parsed = JSON.parse(text.replace(/```json|```/g, ""));
-      
-      return parsed;
-    } catch (err: any) {
-      console.error("Gemini Prediction Error:", err);
+      let text = '';
+
+      if (provider === 'gemini') {
+        text = await callGemini(apiKey, model || 'gemini-2.5-flash', [
+          fullPrompt,
+          "Format your response as a clean, professional analysis of key matches and betting opportunities (GG, Over 2.5, Home win, Under 2.5, 1X2 etc). Use bullet points and be specific about which teams and why.",
+          inputJson
+        ]);
+      } else if (provider === 'mistral') {
+        text = await callMistral(
+          apiKey,
+          model || 'mistral-large-latest',
+          fullPrompt,
+          `Analyze this match data and answer the user's question:\n\n${inputJson}`
+        );
+      } else {
+        return { summary: `Provider '${provider}' not yet implemented.`, structuredData: {}, success: false };
+      }
+
       return {
-        match: data.homeTeam + " vs " + data.awayTeam,
-        prediction: "Error",
-        odds: 0,
-        probability: 0,
-        reasoning: `Failed to connect to Gemini: ${err.message || 'Unknown Error'}`
+        summary: text,
+        structuredData: {},
+        success: true
+      };
+    } catch (err: any) {
+      const isQuota = err.message?.includes('429') || err.message?.includes('quota') || err.message?.includes('rate');
+      const errMsg = isQuota
+        ? `⚠️ ${provider === 'gemini' ? 'Gemini' : 'Mistral'} quota exceeded. ${this.config.fallbackProvider ? 'Switching to backup provider...' : 'Please try again later or add a Mistral API key as backup.'}`
+        : `AI Processing Failed (${provider}): ${err.message || 'Unknown Error'}`;
+
+      console.error(`[AI] ${provider} error:`, err.message);
+      return {
+        summary: errMsg,
+        structuredData: {},
+        success: false
       };
     }
   }
 
-  async process(data: any, userPrompt?: string): Promise<any> {
-    const prompt = this.config.systemPrompt || "Process this football data and identify patterns.";
+  // ────────────────────────────────────────────────────────────────────────────
+  // PREDICT: for individual match prediction cards
+  // ────────────────────────────────────────────────────────────────────────────
+  async predict(matchData: any, userPrompt?: string): Promise<PredictionResult> {
+    const prompt = this.config.systemPrompt || "Predict the outcome of this football match.";
     const fullPrompt = userPrompt ? `${prompt}\n\nUser Request: ${userPrompt}` : prompt;
-    
-    if (this.config.provider === 'gemini') {
-      try {
-        const genAI = new GoogleGenerativeAI(this.config.apiKey);
-        const model = genAI.getGenerativeModel({ model: this.config.model || "gemini-2.5-flash" });
-        
-        const input = JSON.stringify(data).substring(0, 30000); // Guard against token limits
-        const result = await model.generateContent([
-          fullPrompt,
-          "Format your response as a clean summary of key matches and betting opportunities (GG, Over 2.5, Home win etc).",
-          input
-        ]);
-        
-        return {
-          summary: result.response.text(),
-          structuredData: data,
-          success: true
-        };
-      } catch (err: any) {
-        console.error("Gemini Processing Error:", err);
-        return {
-          summary: `AI Processing Failed: ${err.message || 'Unknown Error'}. Please check your API key and connection.`,
-          structuredData: data,
-          success: false
-        };
-      }
-    }
 
-    return {
-      summary: `Processed ${Array.isArray(data) ? data.length : 1} items (Offline Mode - No Provider).`,
-      structuredData: data,
-      success: true
-    };
+    try {
+      let text = '';
+      if (this.config.provider === 'gemini') {
+        text = await callGemini(this.config.apiKey, this.config.model || 'gemini-2.5-flash', [
+          fullPrompt,
+          "Return a JSON object with: match, prediction, odds, probability (0-1), reasoning.",
+          JSON.stringify(matchData)
+        ]);
+      } else if (this.config.provider === 'mistral') {
+        text = await callMistral(
+          this.config.apiKey,
+          this.config.model || 'mistral-large-latest',
+          fullPrompt,
+          `Return a JSON object with: match, prediction, odds, probability (0-1), reasoning. Data: ${JSON.stringify(matchData)}`
+        );
+      }
+
+      return JSON.parse(text.replace(/```json|```/g, '').trim());
+    } catch (err: any) {
+      console.error("Prediction Error:", err);
+      return {
+        match: matchData.homeTeam + " vs " + matchData.awayTeam,
+        prediction: "Error",
+        odds: 0,
+        probability: 0,
+        reasoning: `Prediction failed: ${err.message || 'Unknown Error'}`
+      };
+    }
   }
 
+  // ────────────────────────────────────────────────────────────────────────────
+  // EXTRACT FROM HTML: for web scraper
+  // ────────────────────────────────────────────────────────────────────────────
   async extractFromHtml(html: string): Promise<PredictionResult[]> {
-    if (this.config.provider === 'gemini') {
-      try {
-        const genAI = new GoogleGenerativeAI(this.config.apiKey);
-        const model = genAI.getGenerativeModel({ model: this.config.model || "gemini-2.5-flash" });
-        
-        const result = await model.generateContent([
-          "Extract match data from this HTML content. Return a JSON array of objects with: match (Home vs Away), odds, reasoning.",
-          html.substring(0, 20000)
+    const prompt = "Extract match data from this HTML content. Return a JSON array of objects with: match (Home vs Away), odds, reasoning.";
+    try {
+      let text = '';
+      if (this.config.provider === 'gemini') {
+        text = await callGemini(this.config.apiKey, this.config.model || 'gemini-2.5-flash', [
+          prompt, html.substring(0, 20000)
         ]);
-        
-        const text = result.response.text();
-        return JSON.parse(text.replace(/```json|```/g, ""));
-      } catch (err) {
-        console.error("Gemini Extraction Error:", err);
+      } else if (this.config.provider === 'mistral') {
+        text = await callMistral(
+          this.config.apiKey,
+          this.config.model || 'mistral-large-latest',
+          prompt,
+          html.substring(0, 20000)
+        );
       }
+      return JSON.parse(text.replace(/```json|```/g, '').trim());
+    } catch (err) {
+      console.error("HTML Extraction Error:", err);
     }
-    
     return [];
   }
 }
