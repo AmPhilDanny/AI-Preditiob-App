@@ -7,7 +7,7 @@ import {
   RefreshCcw, Zap, Brain, Target, Activity, Shield,
   AlertTriangle, ArrowRight, ChevronRight, TrendingUp,
   Globe, CheckCircle, Play, Loader2, Send, MessageSquare,
-  Sparkles, Check, Database, Terminal
+  Sparkles, Check, Database, Terminal, History, Trash2, X
 } from 'lucide-react';
 
 // ── Lightweight Markdown Renderer ─────────────────────────────────────────────
@@ -81,6 +81,46 @@ export default function HomePage() {
   const [isTyping, setIsTyping] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  // Slip History — persisted in localStorage
+  interface SlipHistory {
+    id: string;
+    slips: any[];
+    provider: string;
+    timestamp: string;
+    targets: number[];
+  }
+  const [slipHistory, setSlipHistory] = useState<SlipHistory[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+
+  // Load history from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('slipHistory');
+      if (stored) setSlipHistory(JSON.parse(stored));
+    } catch {}
+  }, []);
+
+  const saveToHistory = (entry: SlipHistory) => {
+    setSlipHistory(prev => {
+      const updated = [entry, ...prev].slice(0, 20); // keep last 20
+      try { localStorage.setItem('slipHistory', JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+  };
+
+  const deleteFromHistory = (id: string) => {
+    setSlipHistory(prev => {
+      const updated = prev.filter(e => e.id !== id);
+      try { localStorage.setItem('slipHistory', JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+  };
+
+  const clearHistory = () => {
+    setSlipHistory([]);
+    try { localStorage.removeItem('slipHistory'); } catch {}
+  };
+
   // Agent Status State
   const [agents, setAgents] = useState({
     scraper:   { status: 'idle', lastRun: null as string | null },
@@ -119,6 +159,14 @@ export default function HomePage() {
       if (!json.success) throw new Error(json.error || 'Pipeline error');
       
       setData(json);
+      // Add to slip history
+      saveToHistory({
+        id: `history-${Date.now()}`,
+        slips: json.slips,
+        provider: json.provider || 'AI',
+        timestamp: json.timestamp,
+        targets
+      });
       setAgents(prev => ({ 
         ...prev, 
         analyst: { status: 'success', lastRun: new Date().toISOString() },
@@ -458,6 +506,13 @@ export default function HomePage() {
               <p className="text-sm text-muted-foreground mt-1">Consensus reached across 3 neural nodes</p>
             </div>
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowHistory(prev => !prev)}
+                className={`btn-ghost text-xs px-3 py-1.5 flex items-center gap-1.5 ${showHistory ? 'text-primary' : ''}`}
+              >
+                <History size={13} />
+                History {slipHistory.length > 0 && <span className="badge badge-purple py-0 px-1.5 text-[10px]">{slipHistory.length}</span>}
+              </button>
               {[2, 5, 10].map(t => (
                 <button
                   key={t}
@@ -539,6 +594,66 @@ export default function HomePage() {
             <p className="text-sm text-muted-foreground">Use the chat assistant or click "Generate Slips" above.</p>
           </div>
         )
+      )}
+
+      {/* ── Slip History Panel ─────────────────────────────────── */}
+      {showHistory && (
+        <motion.section
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-10 space-y-4"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-display text-xl font-black text-foreground flex items-center gap-2">
+                <History size={18} className="text-primary" /> Generation History
+              </h2>
+              <p className="text-sm text-muted-foreground mt-0.5">Last {slipHistory.length} generated slip sessions</p>
+            </div>
+            {slipHistory.length > 0 && (
+              <button onClick={clearHistory} className="btn-ghost text-xs text-destructive hover:text-destructive px-3 py-1.5 flex items-center gap-1.5">
+                <Trash2 size={12} /> Clear All
+              </button>
+            )}
+          </div>
+
+          {slipHistory.length === 0 ? (
+            <div className="card-base p-10 text-center text-muted-foreground text-sm">
+              No history yet. Generate slips to start tracking.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {slipHistory.map((entry) => (
+                <div key={entry.id} className="card-base overflow-hidden">
+                  <div className="px-5 py-3 border-b border-border flex items-center justify-between bg-secondary/30">
+                    <div className="flex items-center gap-3">
+                      <span className="badge badge-purple text-[10px]">{entry.provider}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(entry.timestamp).toLocaleString()} · Targets: {entry.targets.join('×, ')}×
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => deleteFromHistory(entry.id)}
+                      className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                  <div className="divide-y divide-border">
+                    {entry.slips.map((slip: any, si: number) => (
+                      <div key={si} className="px-5 py-3 flex items-center gap-4">
+                        <span className="text-xs font-bold text-muted-foreground w-16 shrink-0">Target {slip.targetOdds}×</span>
+                        <span className="font-display font-black text-foreground">{slip.totalOdds}×</span>
+                        <span className="badge badge-purple text-[10px]">{slip.confidence}% conf.</span>
+                        <span className="text-xs text-muted-foreground">{slip.matches?.length || 0} matches</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </motion.section>
       )}
 
       {/* ── Footer ────────────────────────────────────────────── */}
