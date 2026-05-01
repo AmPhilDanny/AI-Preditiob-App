@@ -53,7 +53,7 @@ export async function GET(request: Request) {
     provider,
     apiKey,
     model,
-    systemPrompt: config.agentPrompts.analyst || 'You are an expert football analyst. Predict match outcomes with high confidence.',
+    systemPrompt: `STRICT RULE: Focus EXCLUSIVELY on matches occurring TODAY (${new Date().toISOString().split('T')[0]}). Prioritize accuracy for these games. \n\n${config.agentPrompts.analyst || 'You are an expert football analyst. Predict match outcomes with high confidence.'}`,
     fallbackProvider,
     fallbackApiKey,
     fallbackModel,
@@ -63,7 +63,15 @@ export async function GET(request: Request) {
   const health = new HealthAgent();
 
   try {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
     const cachedMatches = await prisma.scrapedData.findMany({
+      where: {
+        createdAt: {
+          gte: startOfToday
+        }
+      },
       orderBy: { createdAt: 'desc' },
       take: 50
     });
