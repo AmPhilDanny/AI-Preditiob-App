@@ -44,59 +44,22 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    const { id, status, matchIndex } = body;
 
+  try {
+    const { id, status } = await request.json();
+    
     if (!id || !status) {
-      return NextResponse.json({ error: 'ID and status required' }, { status: 400 });
+      return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
     }
 
-    if (matchIndex !== undefined) {
-      const slip = await prisma.predictionSlip.findUnique({ where: { id } });
-      if (!slip) throw new Error('Slip not found');
-
-      const matches = [...(slip.matches as any[])];
-      if (matches[matchIndex]) {
-        matches[matchIndex].status = status;
-      }
-
-      const updated = await prisma.predictionSlip.update({
-        where: { id },
-        data: { matches }
-      });
-      return NextResponse.json({ success: true, updated });
-    } else {
-      const updated = await prisma.predictionSlip.update({
-        where: { id },
-        data: { status }
-      });
-      return NextResponse.json({ success: true, updated });
-    }
-  } catch (error: any) {
-    console.error('Error updating history:', error);
-    return NextResponse.json({ error: error.message || 'Failed to update slip status' }, { status: 500 });
-  }
-}
-
-export async function DELETE(request: Request) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-
-    if (!id) {
-      return NextResponse.json({ success: false, error: 'Slip ID required' }, { status: 400 });
-    }
-
-    // Mark as archived instead of hard delete to preserve data for learning
-    await prisma.predictionSlip.update({
+    const updated = await prisma.predictionSlip.update({
       where: { id },
-      data: { archived: true }
+      data: { status }
     });
 
-    return NextResponse.json({ success: true });
-  } catch (error: any) {
-    console.error('Delete history error:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, updated });
+  } catch (error) {
+    console.error('Error updating history:', error);
+    return NextResponse.json({ error: 'Failed to update slip status' }, { status: 500 });
   }
 }

@@ -113,7 +113,6 @@ export default function AdminPage() {
   const [historySearch, setHistorySearch] = useState('');
   const [historyPageInput, setHistoryPageInput] = useState('');
   const [selectedSlip, setSelectedSlip] = useState<any>(null);
-  const [expandedHistoryIds, setExpandedHistoryIds] = useState<string[]>([]);
 
   /* ── Load Scraped Data ─────────────────────────────────────── */
   const loadScrapedData = async (pageNum = page, search = searchQuery) => {
@@ -317,38 +316,16 @@ export default function AdminPage() {
   };
 
   /* ── Update Slip Status ──────────────────────────────────── */
-  const updateSlipStatus = async (id: string, status: string, matchIndex?: number) => {
-    setHistory(prev => prev.map(s => {
-      if (s.id !== id) return s;
-      if (matchIndex !== undefined) {
-        const matches = [...(s.matches as any[])];
-        if (matches[matchIndex]) matches[matchIndex].status = status;
-        return { ...s, matches };
-      }
-      return { ...s, status };
-    }));
-
+  const updateSlipStatus = async (id: string, status: string) => {
+    setHistory(prev => prev.map(s => s.id === id ? { ...s, status } : s));
     try {
       await fetch('/api/admin/history', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status, matchIndex }),
+        body: JSON.stringify({ id, status }),
       });
     } catch (e) {
       console.error('Failed to update status', e);
-    }
-  };
-
-  const deleteHistoryItem = async (id: string) => {
-    if (!confirm('Are you sure you want to remove this prediction from history?')) return;
-    try {
-      const res = await fetch(`/api/admin/history?id=${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        setHistory(prev => prev.filter(s => s.id !== id));
-        showNotification('Prediction removed from history', 'success');
-      }
-    } catch (e) {
-      console.error('Failed to delete history item', e);
     }
   };
 
@@ -1042,127 +1019,57 @@ export default function AdminPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {history.map(slip => {
-                            const isExpanded = expandedHistoryIds.includes(slip.id);
-                            return (
-                              <React.Fragment key={slip.id}>
-                                <tr 
-                                  className={`group transition-colors cursor-pointer ${isExpanded ? 'bg-primary/5' : 'hover:bg-secondary/20'}`}
-                                  onClick={() => setExpandedHistoryIds(prev => 
-                                    prev.includes(slip.id) ? prev.filter(id => id !== slip.id) : [...prev, slip.id]
-                                  )}
-                                >
-                                  <td className="text-xs font-mono text-muted-foreground whitespace-nowrap">
-                                    <div className="flex items-center gap-2">
-                                      <ChevronRight size={14} className={`transition-transform ${isExpanded ? 'rotate-90 text-primary' : ''}`} />
-                                      {formatToWAT(slip.createdAt)}
-                                    </div>
-                                  </td>
-                                  <td>
-                                    <span className="badge badge-purple">{slip.targetOdds}×</span>
-                                  </td>
-                                  <td>
-                                    <div className="flex items-center gap-3">
-                                      <div className="progress-bar w-16">
-                                        <div className="progress-fill" style={{ width: `${slip.confidence}%` }} />
-                                      </div>
-                                      <span className="text-xs font-semibold text-foreground">{slip.confidence}%</span>
-                                    </div>
-                                  </td>
-                                  <td>
-                                    <span className={`badge ${
-                                      slip.status === 'WON' ? 'badge-green' :
-                                      slip.status === 'LOST' ? 'badge-red' : 'badge-amber'
-                                    }`}>
-                                      {slip.status || 'PENDING'}
-                                    </span>
-                                  </td>
-                                  <td>
-                                    <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                                      <button
-                                        onClick={() => setSelectedSlip(slip)}
-                                        className="p-1 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                                        title="View Details"
-                                      >
-                                        <Eye size={14} />
-                                      </button>
-                                      <button
-                                        onClick={() => updateSlipStatus(slip.id, 'WON')}
-                                        className="p-1 rounded bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-colors"
-                                        title="Mark as Won"
-                                      >
-                                        <Check size={14} />
-                                      </button>
-                                      <button
-                                        onClick={() => updateSlipStatus(slip.id, 'LOST')}
-                                        className="p-1 rounded bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
-                                        title="Mark as Lost"
-                                      >
-                                        <X size={14} />
-                                      </button>
-                                      <button
-                                        onClick={() => deleteHistoryItem(slip.id)}
-                                        className="p-1 rounded bg-secondary text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors ml-1"
-                                        title="Delete from History"
-                                      >
-                                        <Trash2 size={14} />
-                                      </button>
-                                    </div>
-                                  </td>
-                                </tr>
-                                {isExpanded && (
-                                  <tr>
-                                    <td colSpan={5} className="p-0 bg-secondary/5">
-                                      <motion.div
-                                        initial={{ height: 0, opacity: 0 }}
-                                        animate={{ height: 'auto', opacity: 1 }}
-                                        className="p-4 sm:p-6 border-x border-b border-border/50"
-                                      >
-                                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                                          {(Array.isArray(slip.matches) ? slip.matches : []).map((m: any, mi: number) => (
-                                            <div key={mi} className={`p-4 rounded-xl border transition-all ${
-                                              m.status === 'WON' ? 'bg-emerald-500/5 border-emerald-500/20' :
-                                              m.status === 'LOST' ? 'bg-destructive/5 border-destructive/20' :
-                                              'bg-background border-border'
-                                            }`}>
-                                              <div className="flex items-center justify-between mb-3">
-                                                <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${
-                                                  m.status === 'WON' ? 'bg-emerald-500/20 text-emerald-500' :
-                                                  m.status === 'LOST' ? 'bg-destructive/20 text-destructive' :
-                                                  'bg-primary/10 text-primary'
-                                                }`}>
-                                                  {m.prediction}
-                                                </span>
-                                                <div className="flex items-center gap-1">
-                                                  <button 
-                                                    onClick={() => updateSlipStatus(slip.id, 'WON', mi)}
-                                                    className={`p-1.5 rounded transition-colors ${m.status === 'WON' ? 'text-emerald-500 bg-emerald-500/10' : 'text-muted-foreground hover:text-emerald-500 hover:bg-secondary'}`}
-                                                  >
-                                                    <Check size={12} />
-                                                  </button>
-                                                  <button 
-                                                    onClick={() => updateSlipStatus(slip.id, 'LOST', mi)}
-                                                    className={`p-1.5 rounded transition-colors ${m.status === 'LOST' ? 'text-destructive bg-destructive/10' : 'text-muted-foreground hover:text-destructive hover:bg-secondary'}`}
-                                                  >
-                                                    <X size={12} />
-                                                  </button>
-                                                </div>
-                                              </div>
-                                              <p className="text-xs font-bold text-foreground mb-1">{m.match}</p>
-                                              <div className="flex items-center justify-between">
-                                                <p className="text-[10px] text-muted-foreground font-mono">{m.odds}×</p>
-                                                <p className="text-[10px] text-muted-foreground italic truncate max-w-[150px]">{m.reasoning}</p>
-                                              </div>
-                                            </div>
-                                          ))}
-                                        </div>
-                                      </motion.div>
-                                    </td>
-                                  </tr>
-                                )}
-                              </React.Fragment>
-                            );
-                          })}
+                          {history.map(slip => (
+                            <tr key={slip.id} className="group hover:bg-secondary/20 transition-colors">
+                              <td className="text-xs font-mono text-muted-foreground whitespace-nowrap">
+                                {formatToWAT(slip.createdAt)}
+                              </td>
+                              <td>
+                                <span className="badge badge-purple">{slip.targetOdds}×</span>
+                              </td>
+                              <td>
+                                <div className="flex items-center gap-3">
+                                  <div className="progress-bar w-16">
+                                    <div className="progress-fill" style={{ width: `${slip.confidence}%` }} />
+                                  </div>
+                                  <span className="text-xs font-semibold text-foreground">{slip.confidence}%</span>
+                                </div>
+                              </td>
+                              <td>
+                                <span className={`badge ${
+                                  slip.status === 'WON' ? 'badge-green' :
+                                  slip.status === 'LOST' ? 'badge-red' : 'badge-amber'
+                                }`}>
+                                  {slip.status || 'PENDING'}
+                                </span>
+                              </td>
+                              <td>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => setSelectedSlip(slip)}
+                                    className="p-1 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                                    title="View Details"
+                                  >
+                                    <Eye size={14} />
+                                  </button>
+                                  <button
+                                    onClick={() => updateSlipStatus(slip.id, 'WON')}
+                                    className="p-1 rounded bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-colors"
+                                    title="Mark as Won"
+                                  >
+                                    <Check size={14} />
+                                  </button>
+                                  <button
+                                    onClick={() => updateSlipStatus(slip.id, 'LOST')}
+                                    className="p-1 rounded bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
+                                    title="Mark as Lost"
+                                  >
+                                    <X size={14} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
                         </tbody>
                       </table>
 
