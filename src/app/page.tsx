@@ -7,7 +7,7 @@ import {
   RefreshCcw, Zap, Brain, Target, Activity, Shield,
   AlertTriangle, ArrowRight, ChevronRight, TrendingUp,
   Globe, CheckCircle, Play, Loader2, Send, MessageSquare,
-  Sparkles, Check, Database, Terminal, History, Trash2, X
+  Sparkles, Check, Database, Terminal, History, Trash2, X, Share2
 } from 'lucide-react';
 
 // ── Lightweight Markdown Renderer ─────────────────────────────────────────────
@@ -171,6 +171,30 @@ export default function HomePage() {
       }
     } catch (e) {
       console.error('Failed to update status', e);
+    }
+  };
+
+  const [pushing, setPushing] = useState<Record<string, boolean>>({});
+  
+  const pushToNeuralBets = async (slipId: string) => {
+    setPushing(prev => ({ ...prev, [slipId]: true }));
+    try {
+      const res = await fetch('/api/external/push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slipId })
+      });
+      const json = await res.json();
+      if (json.success) {
+        showNotification('Slip successfully pushed to Neural-Bets!', 'success');
+      } else {
+        showNotification(`Push failed: ${json.error}`, 'error');
+      }
+    } catch (e) {
+      console.error('Push error', e);
+      showNotification('An error occurred while pushing to Neural-Bets', 'error');
+    } finally {
+      setPushing(prev => ({ ...prev, [slipId]: false }));
     }
   };
 
@@ -754,9 +778,19 @@ export default function HomePage() {
 
                 {/* Card footer */}
                 <div className="p-4 bg-secondary/30">
-                  <button className="btn-secondary w-full justify-center text-xs font-bold uppercase tracking-widest">
-                    Full Analysis <ArrowRight size={14} />
-                  </button>
+                  <div className="flex gap-2">
+                    <button className="btn-secondary flex-1 justify-center text-xs font-bold uppercase tracking-widest">
+                      Full Analysis <ArrowRight size={14} />
+                    </button>
+                    <button
+                      onClick={() => pushToNeuralBets(slip.id)}
+                      disabled={pushing[slip.id]}
+                      className="btn-primary w-12 px-0 justify-center"
+                      title="Push to Neural-Bets"
+                    >
+                      {pushing[slip.id] ? <Loader2 size={14} className="animate-spin" /> : <Share2 size={14} />}
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             ))}
@@ -845,6 +879,17 @@ export default function HomePage() {
                                   <span className="badge badge-purple text-[10px] font-bold">{slip.confidence}% conf.</span>
                                 </div>
                                 <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => pushToNeuralBets(slip.id)}
+                                    disabled={pushing[slip.id]}
+                                    className={`p-1.5 rounded-lg transition-all border ${
+                                      pushing[slip.id] ? 'bg-primary/5 text-primary border-primary/20' : 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20'
+                                    }`}
+                                    title="Push to Neural-Bets"
+                                  >
+                                    {pushing[slip.id] ? <Loader2 size={12} className="animate-spin" /> : <Share2 size={12} />}
+                                  </button>
+
                                   <button
                                     onClick={() => updateSlipStatus(slip.id, 'WIN')}
                                     className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all border ${

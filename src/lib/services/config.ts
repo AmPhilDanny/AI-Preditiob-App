@@ -21,6 +21,10 @@ export interface SystemConfig {
     scraper: string;
     processor: string;
   };
+  neuralBets: {
+    url: string;
+    apiKey: string;
+  };
 }
 
 class ConfigService {
@@ -76,6 +80,8 @@ class ConfigService {
             analystPrompt: defaults.agentPrompts.analyst,
             scraperPrompt: defaults.agentPrompts.scraper,
             processorPrompt: defaults.agentPrompts.processor,
+            neuralBetsUrl: defaults.neuralBets.url,
+            neuralBetsApiKey: defaults.neuralBets.apiKey,
           }
         });
       }
@@ -112,6 +118,10 @@ class ConfigService {
           analyst: config.analystPrompt || '',
           scraper: config.scraperPrompt || '',
           processor: config.processorPrompt || '',
+        },
+        neuralBets: {
+          url: (config as any).neuralBetsUrl || '',
+          apiKey: (config as any).neuralBetsApiKey || '',
         }
       };
     } catch (error) {
@@ -144,6 +154,10 @@ class ConfigService {
         processor: updates.agentPrompts?.processor ?? current.agentPrompts.processor,
       },
       scrapingUrls: updates.scrapingUrls ?? current.scrapingUrls,
+      neuralBets: {
+        url: updates.neuralBets?.url ?? current.neuralBets.url,
+        apiKey: updates.neuralBets?.apiKey ?? current.neuralBets.apiKey,
+      }
     };
 
     return prisma.systemConfig.upsert({
@@ -174,6 +188,9 @@ class ConfigService {
         analystPrompt: merged.agentPrompts.analyst,
         scraperPrompt: merged.agentPrompts.scraper,
         processorPrompt: merged.agentPrompts.processor,
+        neuralBetsUrl: merged.neuralBets.url,
+        neuralBetsApiKey: merged.neuralBets.apiKey,
+
       },
       create: {
         id: this.CONFIG_ID,
@@ -202,6 +219,9 @@ class ConfigService {
         analystPrompt: merged.agentPrompts.analyst,
         scraperPrompt: merged.agentPrompts.scraper,
         processorPrompt: merged.agentPrompts.processor,
+        neuralBetsUrl: merged.neuralBets.url,
+        neuralBetsApiKey: merged.neuralBets.apiKey,
+
       },
     });
   }
@@ -223,6 +243,10 @@ class ConfigService {
       },
       aiAnalysisEnabled: true,
       predictionThreshold: 75,
+      neuralBets: {
+        url: '',
+        apiKey: '',
+      },
       agentPrompts: {
         analyst: `You are an elite football betting analyst with 15+ years of experience across European, African, and global football leagues.
 

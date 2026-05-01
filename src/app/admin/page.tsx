@@ -10,7 +10,7 @@ import {
   Cpu, Terminal, Globe, Lock, Database, Shield,
   CheckCircle, RefreshCcw, Plus, Trash2, Eye, EyeOff,
   Zap, Activity, History, Server, LogOut, AlertTriangle,
-  Loader2, Play, Check, X, Brain, Search
+  Loader2, Play, Check, X, Brain, Search, Share2
 } from 'lucide-react';
 
 const TABS = [
@@ -21,6 +21,7 @@ const TABS = [
   { id: 'processor', label: 'Intelligence',   icon: Brain },
   { id: 'history',  label: 'Prediction Logs', icon: History },
   { id: 'security', label: 'Vault',           icon: Lock },
+  { id: 'neuralbets', label: 'Neural Bets',    icon: Share2 },
 ];
 
 const FOOTBALL_PROVIDERS = [
@@ -1362,7 +1363,76 @@ export default function AdminPage() {
               </motion.div>
             )}
 
+            {/* ── Neural Bets ────────────────────────────────────── */}
+            {active === 'neuralbets' && (
+              <motion.div key="neuralbets" variants={fadeIn} initial="hidden" animate="show" exit="hidden" className="space-y-6">
+                <div className="card-base overflow-hidden">
+                  <div className="px-6 py-4 border-b border-border flex items-center gap-2">
+                    <Share2 size={16} className="text-primary" />
+                    <h3 className="font-semibold text-sm text-foreground">External Site Connection</h3>
+                  </div>
+                  <div className="p-6 space-y-6">
+                    <div className="space-y-2">
+                      <label className="section-label">Neural-Bets URL</label>
+                      <input
+                        type="text"
+                        value={config?.neuralBets?.url || ''}
+                        onChange={e => setConfig({
+                          ...config,
+                          neuralBets: { ...config.neuralBets, url: e.target.value }
+                        })}
+                        className="form-input"
+                        placeholder="https://neural-bets-three.vercel.app"
+                      />
+                      <p className="text-[10px] text-muted-foreground italic">
+                        The destination URL where betting slips will be pushed.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="section-label">Neural-Bets API Key</label>
+                      <div className="relative">
+                        <input
+                          type={showKey['neuralbets'] ? 'text' : 'password'}
+                          value={config?.neuralBets?.apiKey || ''}
+                          onChange={e => setConfig({
+                            ...config,
+                            neuralBets: { ...config.neuralBets, apiKey: e.target.value }
+                          })}
+                          className="form-input pr-10"
+                          placeholder="nb_live_..."
+                        />
+                        <button
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                          onClick={() => setShowKey(prev => ({ ...prev, neuralbets: !prev.neuralbets }))}
+                        >
+                          {showKey['neuralbets'] ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground italic">
+                        Security token for authenticating push requests. (One-way outbound only)
+                      </p>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
+                      <div className="flex items-start gap-3">
+                        <Lock size={16} className="text-primary mt-0.5" />
+                        <div>
+                          <p className="text-xs font-semibold text-primary">Secure One-Way API</p>
+                          <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
+                            This connection is strictly outbound. The AI Prediction App pushes data to Neural-Bets. 
+                            Neural-Bets cannot request data or access the internal database of this application.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
           </AnimatePresence>
+
         </main>
       </div>
     </div>
