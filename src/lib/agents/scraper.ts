@@ -60,7 +60,7 @@ export class ScraperAgent {
 
     console.log(`[SCRAPER] Targeted fetch for API: ${apiName}...`);
     try {
-      const fixtures = await targetService.service.getTodayFixtures(3);
+      const fixtures = await targetService.service.getTodayFixtures(0);
       console.log(`[SCRAPER] ${apiName} returned ${fixtures.length} fixtures.`);
       
       const mappedFixtures = this.processApiData(fixtures, apiName);
@@ -110,7 +110,7 @@ export class ScraperAgent {
                 config.aiProviders.openrouter.enabled ? config.aiProviders.openrouter.apiKey : '',
         model: config.aiProviders.gemini.enabled ? config.aiProviders.gemini.model : 
                config.aiProviders.openrouter.enabled ? config.aiProviders.openrouter.model : 'gemini-1.5-flash',
-        systemPrompt: config.agentPrompts.scraper
+        systemPrompt: `STRICT RULE: Only extract matches occurring TODAY (${new Date().toISOString().split('T')[0]}). Ignore any matches for future dates. \n\n${config.agentPrompts.scraper}`
       };
 
       if (!aiConfig.apiKey) {
@@ -190,7 +190,7 @@ export class ScraperAgent {
     for (const { name, service } of apiServices) {
       try {
         console.log(`[SCRAPER] Processing API: ${name}...`);
-        const fixtures = await service.getTodayFixtures(3);
+        const fixtures = await service.getTodayFixtures(0);
         console.log(`[SCRAPER] ${name} returned ${fixtures.length} fixtures.`);
         
         const mappedFixtures = this.processApiData(fixtures, name);

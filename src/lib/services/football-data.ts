@@ -60,7 +60,8 @@ export class FootballDataService implements FootballApiService {
   }
 
   async getTodayFixtures(): Promise<NormalizedFixture[]> {
-    const data = await this.fetchFromAPI('matches');
+    const today = new Date().toISOString().split('T')[0];
+    const data = await this.fetchFromAPI(`matches?dateFrom=${today}&dateTo=${today}`);
     
     return (data.matches || []).map((m: any) => ({
       homeTeam: m.homeTeam.name,

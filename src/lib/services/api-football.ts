@@ -27,7 +27,7 @@ export class APIFootballService implements FootballApiService {
     return response.json();
   }
 
-  async getTodayFixtures(daysAhead: number = 3): Promise<NormalizedFixture[]> {
+  async getTodayFixtures(daysAhead: number = 0): Promise<NormalizedFixture[]> {
     const today = new Date().toISOString().split('T')[0];
     const data = await this.fetchFromAPI('fixtures', { date: today }); // This API usually only does 1 date per request
     

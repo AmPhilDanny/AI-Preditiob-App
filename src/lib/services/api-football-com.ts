@@ -23,7 +23,7 @@ export class APIFootballDotComService implements FootballApiService {
     return response.json();
   }
 
-  async getTodayFixtures(daysAhead: number = 3): Promise<NormalizedFixture[]> {
+  async getTodayFixtures(daysAhead: number = 0): Promise<NormalizedFixture[]> {
     const today = new Date();
     const future = new Date();
     future.setDate(today.getDate() + daysAhead);
