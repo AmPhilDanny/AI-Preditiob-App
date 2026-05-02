@@ -168,7 +168,7 @@ export class AIFactory {
     ).join('\n');
 
     const chatSection = chatContext
-      ? `\n\nCHAT INSIGHTS (from analyst conversation — incorporate these findings):\n${chatContext}`
+      ? `\n\nCRITICAL CONTEXT — The user has provided specific instructions in the chat history. YOU MUST FOLLOW THESE INSTRUCTIONS FOR YOUR ANALYSIS:\n${chatContext}`
       : '';
 
     const userContent = `${chatSection}
@@ -176,23 +176,29 @@ export class AIFactory {
 AVAILABLE MATCHES TODAY:
 ${matchSummary}
 
-TASK: Critically evaluate EVERY match above. For each, provide your prediction.
+TASK: Perform a deep statistical analysis for EVERY match listed above. 
 
-IMPORTANT RULES:
-- Focus on HIGH PROBABILITY outcomes (probability >= 0.65)
-- Prefer bets with odds between 1.20 and 2.50 for accumulator safety
-- Markets: Home Win, Away Win, Draw, Over 2.5 Goals, Under 2.5 Goals, BTTS Yes, BTTS No, Double Chance
-- Use evidence from odds, BTTS, Over/Under data to justify predictions
-- If a match has unclear evidence, assign LOW probability (0.40–0.55)
+IMPORTANT RULES FOR ACCURACY AND DIVERSITY:
+1. MARKET DIVERSITY: Do NOT default to "Over 2.5 Goals". Evaluate ALL markets: 1X2 (Home/Away/Draw), Double Chance, GG/BTTS, and Under 2.5.
+2. EVIDENCE-BASED: Justify every prediction using the provided odds and context.
+3. RISK MANAGEMENT: For accumulators, prefer high-probability (0.65+) outcomes. If the data is 50/50, assign a lower probability.
+4. USER INSTRUCTIONS: If the chat context above asks for specific match counts or market focus, prioritize those in your JSON output.
 
-RETURN a JSON array only (no markdown, no explanation outside JSON):
+RETURN a JSON array only:
 [
   {
     "match": "Team A vs Team B",
-    "prediction": "Over 2.5 Goals",
-    "odds": 1.75,
-    "probability": 0.72,
-    "reasoning": "Both teams score 2+ goals in 70% of home/away games. BTTS odds at 1.80 indicate bookmakers expect goals."
+    "prediction": "Home Win",
+    "odds": 1.45,
+    "probability": 0.82,
+    "reasoning": "Home team has won 90% of home games this season. Visiting team is missing their top striker. Odds of 1.45 indicate strong bookmaker confidence."
+  },
+  {
+    "match": "Team C vs Team D",
+    "prediction": "BTTS - Yes",
+    "odds": 1.85,
+    "probability": 0.68,
+    "reasoning": "Both teams have scored in their last 5 head-to-head encounters. Defensive stats for both sides are weak while attacking forms are high."
   }
 ]`;
 

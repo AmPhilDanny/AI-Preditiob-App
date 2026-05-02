@@ -61,6 +61,8 @@ model PredictionSlip {
   totalOdds   Float
   confidence  Int
   targetOdds  Int
+  category    String   @default("2x")
+  isPremium   Boolean  @default(false)
   matches     Json     
   status      String   @default("PENDING") 
   actualResults Json?  

@@ -34,6 +34,8 @@ export async function POST(request: Request) {
       totalOdds: slip.totalOdds,
       confidence: slip.confidence,
       targetOdds: slip.targetOdds,
+      category: (slip as any).category || (slip.targetOdds <= 1.1 ? "FREE" : `${slip.targetOdds}x`),
+      isPremium: (slip as any).isPremium ?? (slip.targetOdds > 1.1),
       matches: slip.matches,
       pushedAt: new Date().toISOString()
     };

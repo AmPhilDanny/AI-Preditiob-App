@@ -85,27 +85,58 @@ export async function GET(request: Request) {
       sourceType: 'api' as const
     }));
 
-    const slips = await analyst.generateSlips(matchData, targets, chatContext);
+    // ── Parse Chat Context for overrides ─────────────────────────────────────
+    const options: Record<number, { maxMatches?: number; preferredMarket?: string }> = {};
+    if (chatContext) {
+      const lowerContext = chatContext.toLowerCase();
+      
+      // Match Count Parsing (e.g. "two matches", "3 games")
+      const numMap: Record<string, number> = { 'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5 };
+      const matchCountMatch = lowerContext.match(/(one|two|three|four|five|\d+)\s+(match|game|pick|selection)s?\s+for\s+(the\s+)?free/);
+      
+      if (matchCountMatch) {
+        const val = matchCountMatch[1];
+        const count = numMap[val] || parseInt(val, 10);
+        if (!isNaN(count)) {
+          options[1] = { ...options[1], maxMatches: count };
+          console.log(`[API] Chat override detected: ${count} matches for FREE tier`);
+        }
+      }
+
+      // Market Preference Parsing (e.g. "Focus on GG", "Home Win only")
+      if (lowerContext.includes('gg') || lowerContext.includes('btts')) {
+        options[1] = { ...options[1], preferredMarket: 'GG' };
+      }
+    }
+
+    const slips = await analyst.generateSlips(matchData, targets, chatContext, options);
     const systemHealth = await health.checkSystemHealth();
     
     const sessionId = `session_${Date.now()}`;
 
-    await Promise.all(slips.map(slip =>
-      prisma.predictionSlip.create({
+    await Promise.all(slips.map(slip => {
+      const isFree = slip.targetOdds <= 1.1;
+      return prisma.predictionSlip.create({
         data: {
           sessionId,
           totalOdds: slip.totalOdds,
           confidence: slip.confidence,
           targetOdds: slip.targetOdds,
+          category: isFree ? "FREE" : `${slip.targetOdds}x`,
+          isPremium: !isFree,
           matches: slip.matches as any
         }
-      })
-    ));
+      });
+    }));
 
     return NextResponse.json({
       success: true,
       sessionId,
-      slips,
+      slips: slips.map(s => ({
+        ...s,
+        category: s.targetOdds <= 1.1 ? "FREE" : `${s.targetOdds}x`,
+        isPremium: s.targetOdds > 1.1
+      })),
       provider: aiConfig.provider,
       health: systemHealth,
       timestamp: new Date().toISOString()

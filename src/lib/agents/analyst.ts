@@ -19,18 +19,16 @@ export class AnalystAgent {
   /**
    * Generate accumulator betting slips.
    *
-   * Each slip targets a combined odds range (e.g. ~2×, ~5×, ~10×).
-   * Slips are built by accumulating MULTIPLE low-risk matches — NOT
-   * by hunting for a single match with high odds.
-   *
    * @param matches     - Scraped match data from the DB
-   * @param targetOdds  - Array of desired combined odds targets (e.g. [2, 5, 10])
+   * @param targetOdds  - Array of desired combined odds targets (e.g. [1, 2, 5, 10])
    * @param chatContext - Optional: recent chat conversation context to guide selection
+   * @param options     - Optional: overrides for match counts or market preferences
    */
   async generateSlips(
     matches: MatchData[],
-    targetOdds: number[] = [2, 5, 10],
-    chatContext?: string
+    targetOdds: number[] = [1, 2, 5, 10],
+    chatContext?: string,
+    options: Record<number, { maxMatches?: number; preferredMarket?: string }> = {}
   ): Promise<BetSlip[]> {
     console.log(`[AnalystAgent] Generating slips for targets: ${targetOdds.join(', ')}`);
 
@@ -46,9 +44,8 @@ export class AnalystAgent {
     }
 
     // ── Step 1: Get AI predictions for ALL matches in a single batch call ─────
-    // This avoids per-match API calls and is far more efficient and accurate.
     const allPredictions = await this.aiFactory.predictBatch(
-      matches.slice(0, 40), // cap at 40 to avoid token limits
+      matches.slice(0, 40), 
       chatContext
     );
 
@@ -64,16 +61,16 @@ export class AnalystAgent {
     }
 
     // ── Step 2: Filter & sort by confidence (probability) ────────────────────
-    // Only include predictions the AI is reasonably confident about
     const qualified = allPredictions
       .filter(p => p.probability >= 0.60 && p.odds >= 1.10)
-      .sort((a, b) => b.probability - a.probability); // highest confidence first
+      .sort((a, b) => b.probability - a.probability); 
 
     // ── Step 3: Build accumulators for each target ────────────────────────────
     const slips: BetSlip[] = [];
 
     for (const target of targetOdds) {
-      const slip = this.buildAccumulator(qualified, target);
+      const slipOptions = options[target] || {};
+      const slip = this.buildAccumulator(qualified, target, slipOptions);
       slips.push(slip);
     }
 
@@ -84,17 +81,24 @@ export class AnalystAgent {
    * Build a single accumulator slip by greedily adding high-confidence
    * low-odds matches until we reach or exceed the target combined odds.
    *
-   * Strategy per target range:
-   * - ~2×  → prefer odds 1.20–1.60, very high probability (>0.75)
-   * - ~5×  → allow odds up to 2.00, high probability (>0.65)
-   * - ~10× → allow odds up to 2.50, moderate probability (>0.60)
+   * @param target         - Combined odds target (e.g. 1, 2, 5, 10)
+   * @param options        - Optional constraints:
+   *                         - maxMatches: strictly limit match count
+   *                         - preferredMarket: filter for specific markets (e.g. "GG", "1X2")
    */
-  private buildAccumulator(predictions: PredictionResult[], target: number): BetSlip {
+  private buildAccumulator(
+    predictions: PredictionResult[], 
+    target: number, 
+    options: { maxMatches?: number; preferredMarket?: string } = {}
+  ): BetSlip {
     // Determine the preferred odds window for this target range
     let maxOddsPerMatch: number;
     let minProbability: number;
 
-    if (target <= 3) {
+    if (target <= 1.5) { // Free / Very Safe
+      maxOddsPerMatch = 2.50; // Allow slightly higher for a single pick if confident
+      minProbability = 0.75;
+    } else if (target <= 3) {
       maxOddsPerMatch = 1.65;
       minProbability = 0.72;
     } else if (target <= 6) {
@@ -105,28 +109,52 @@ export class AnalystAgent {
       minProbability = 0.60;
     }
 
-    // Filter to predictions that fit this tier
-    const pool = predictions.filter(
+    // ── Step 1: Filter to predictions that fit this tier ──────────────────────
+    let pool = predictions.filter(
       p => p.odds <= maxOddsPerMatch && p.probability >= minProbability
     );
 
+    // Filter by preferred market if specified (e.g. "GG")
+    if (options.preferredMarket) {
+      const marketLower = options.preferredMarket.toLowerCase();
+      const filteredPool = pool.filter(p => 
+        p.prediction.toLowerCase().includes(marketLower) || 
+        p.reasoning.toLowerCase().includes(marketLower)
+      );
+      if (filteredPool.length > 0) pool = filteredPool;
+    }
+
     // If pool is empty, fall back to the full sorted list
-    const candidates = pool.length >= 2 ? pool : predictions;
+    const candidates = pool.length > 0 ? pool : predictions;
 
     const chosen: PredictionResult[] = [];
     let combinedOdds = 1.0;
     let combinedProbability = 1.0;
     const usedMatches = new Set<string>();
 
-    // Greedy accumulation: keep adding matches until target is reached
-    for (const pred of candidates) {
-      if (combinedOdds >= target) break;
-      if (usedMatches.has(pred.match)) continue; // no duplicate matches
+    // ── Step 2: Generation Logic ──────────────────────────────────────────────
 
-      chosen.push(pred);
-      combinedOdds *= pred.odds;
-      combinedProbability *= pred.probability;
-      usedMatches.add(pred.match);
+    // Special Case: Target 1 (Free Bet) — return a SINGLE high-confidence match by default
+    // OR respect the maxMatches if specified (e.g. "2 matches for free game")
+    if (target <= 1.1 && !options.maxMatches) {
+       if (candidates.length > 0) {
+         const best = candidates[0];
+         chosen.push(best);
+         combinedOdds = best.odds;
+         combinedProbability = best.probability;
+       }
+    } else {
+      // Greedy accumulation: keep adding matches until target is reached or limit hit
+      for (const pred of candidates) {
+        if (combinedOdds >= target && chosen.length >= 1) break;
+        if (options.maxMatches && chosen.length >= options.maxMatches) break;
+        if (usedMatches.has(pred.match)) continue; // no duplicate matches
+
+        chosen.push(pred);
+        combinedOdds *= pred.odds;
+        combinedProbability *= pred.probability;
+        usedMatches.add(pred.match);
+      }
     }
 
     // If we couldn't reach the target, still return what we have

@@ -75,7 +75,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [data, setData]       = useState<any>(null);
   const [error, setError]     = useState<string | null>(null);
-  const [targets, setTargets] = useState([2, 5, 10]);
+  const [targets, setTargets] = useState([1, 2, 5, 10]);
   const [messages, setMessages] = useState<Message[]>([
     { role: 'assistant', content: 'Hello! I am your AI Football Assistant. I can help you analyze match data and generate high-probability slips. What would you like to know today?' }
   ]);
@@ -219,14 +219,14 @@ export default function HomePage() {
       const url = new URL('/api/predictions', window.location.origin);
       url.searchParams.set('targets', targets.join(','));
 
-      // Pass last AI chat messages as context so predictions factor in the conversation
-      const assistantMessages = messages
-        .filter(m => m.role === 'assistant')
-        .slice(-3) // last 3 AI replies
-        .map(m => m.content)
+      // Pass last 5 messages (User & Assistant) as context
+      const chatContext = messages
+        .slice(-5) 
+        .map(m => `${m.role.toUpperCase()}: ${m.content}`)
         .join('\n\n---\n\n');
-      if (assistantMessages.length > 50) {
-        url.searchParams.set('chatContext', assistantMessages.substring(0, 2000));
+        
+      if (chatContext.length > 20) {
+        url.searchParams.set('chatContext', chatContext.substring(0, 3000));
       }
       
       const res  = await fetch(url.toString());
@@ -715,7 +715,7 @@ export default function HomePage() {
               <p className="text-sm text-muted-foreground mt-1 font-medium">Latest neural consensus picks</p>
             </div>
             <div className="flex items-center gap-2">
-              {[2, 5, 10].map(t => (
+              {[1, 2, 5, 10].map(t => (
                 <button
                   key={t}
                   onClick={() => {
@@ -726,7 +726,7 @@ export default function HomePage() {
                     targets.includes(t) ? 'bg-primary/10 text-primary border-primary/30' : 'bg-secondary text-muted-foreground border-border'
                   }`}
                 >
-                  {t}×
+                  {t === 1 ? 'FREE' : `${t}×`}
                 </button>
               ))}
             </div>
@@ -744,7 +744,9 @@ export default function HomePage() {
                 <div className="p-6 border-b border-border">
                   <div className="flex items-start justify-between mb-4">
                     <div>
-                      <p className="section-label mb-1 uppercase tracking-widest text-[10px]">Target {slip.targetOdds}×</p>
+                      <p className="section-label mb-1 uppercase tracking-widest text-[10px]">
+                        {slip.targetOdds <= 1.1 ? 'Free Bet' : `Target ${slip.targetOdds}×`}
+                      </p>
                       <p className="font-display text-3xl font-black text-foreground">
                         {slip.totalOdds}
                         <span className="text-lg text-muted-foreground font-medium ml-1">odds</span>

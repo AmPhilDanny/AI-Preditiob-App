@@ -25,7 +25,7 @@ const TABS = [
 ];
 
 const FOOTBALL_PROVIDERS = [
-  { id: 'api1', name: 'API-Football (Sports)', url: 'api-sports.io' },
+  { id: 'api1', name: 'API-Football (RapidAPI)', url: 'rapidapi.com' },
   { id: 'api2', name: 'Football-Data.org', url: 'football-data.org' },
   { id: 'api3', name: 'TheSportsDB.com', url: 'thesportsdb.com' },
   { id: 'api4', name: 'APIFootball.com', url: 'apifootball.com' },
