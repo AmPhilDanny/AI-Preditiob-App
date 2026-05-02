@@ -7,6 +7,7 @@ export interface SystemConfig {
     api2: { apiKey: string; enabled: boolean };
     api3: { apiKey: string; enabled: boolean };
     api4: { apiKey: string; enabled: boolean };
+    api5: { apiKey: string; enabled: boolean };
   };
   aiProviders: {
     gemini: { apiKey: string; enabled: boolean; model: string };
@@ -64,6 +65,8 @@ class ConfigService {
             footballApi3Enabled: defaults.footballApis.api3.enabled,
             footballApiKey4: defaults.footballApis.api4.apiKey,
             footballApi4Enabled: defaults.footballApis.api4.enabled,
+            footballApiKey5: defaults.footballApis.api5.apiKey,
+            footballApi5Enabled: defaults.footballApis.api5.enabled,
             geminiApiKey: defaults.aiProviders.gemini.apiKey,
             geminiEnabled: defaults.aiProviders.gemini.enabled,
             geminiModel: defaults.aiProviders.gemini.model,
@@ -93,6 +96,7 @@ class ConfigService {
           api2: { apiKey: config.footballApiKey2 || '', enabled: config.footballApi2Enabled },
           api3: { apiKey: config.footballApiKey3 || '', enabled: config.footballApi3Enabled },
           api4: { apiKey: config.footballApiKey4 || '', enabled: config.footballApi4Enabled },
+          api5: { apiKey: (config as any).footballApiKey5 || '', enabled: (config as any).footballApi5Enabled ?? false },
         },
         aiProviders: {
           gemini: { 
@@ -141,6 +145,7 @@ class ConfigService {
         api2: { ...current.footballApis.api2, ...updates.footballApis?.api2 },
         api3: { ...current.footballApis.api3, ...updates.footballApis?.api3 },
         api4: { ...current.footballApis.api4, ...updates.footballApis?.api4 },
+        api5: { ...current.footballApis.api5, ...updates.footballApis?.api5 },
       },
       aiProviders: {
         gemini:  { ...current.aiProviders.gemini,  ...updates.aiProviders?.gemini },
@@ -172,6 +177,8 @@ class ConfigService {
         footballApi3Enabled: merged.footballApis.api3.enabled,
         footballApiKey4: merged.footballApis.api4.apiKey,
         footballApi4Enabled: merged.footballApis.api4.enabled,
+        footballApiKey5: merged.footballApis.api5.apiKey,
+        footballApi5Enabled: merged.footballApis.api5.enabled,
         geminiApiKey: merged.aiProviders.gemini.apiKey,
         geminiEnabled: merged.aiProviders.gemini.enabled,
         geminiModel: merged.aiProviders.gemini.model,
@@ -203,6 +210,8 @@ class ConfigService {
         footballApi3Enabled: merged.footballApis.api3.enabled,
         footballApiKey4: merged.footballApis.api4.apiKey,
         footballApi4Enabled: merged.footballApis.api4.enabled,
+        footballApiKey5: merged.footballApis.api5.apiKey,
+        footballApi5Enabled: merged.footballApis.api5.enabled,
         geminiApiKey: merged.aiProviders.gemini.apiKey,
         geminiEnabled: merged.aiProviders.gemini.enabled,
         geminiModel: merged.aiProviders.gemini.model,
@@ -234,6 +243,7 @@ class ConfigService {
         api2: { apiKey: '', enabled: false },
         api3: { apiKey: '', enabled: false },
         api4: { apiKey: '', enabled: false },
+        api5: { apiKey: '', enabled: false },
       },
       aiProviders: {
         gemini: { apiKey: '', enabled: true, model: 'gemini-1.5-flash' },

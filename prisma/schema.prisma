@@ -19,6 +19,8 @@ model SystemConfig {
   footballApi3Enabled Boolean @default(false)
   footballApiKey4 String?
   footballApi4Enabled Boolean @default(false)
+  footballApiKey5 String?
+  footballApi5Enabled Boolean @default(false)
 
   geminiApiKey  String?
   geminiEnabled Boolean  @default(true)

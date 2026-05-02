@@ -3,6 +3,7 @@ import { APIFootballService } from "../services/api-football";
 import { FootballDataService } from "../services/football-data";
 import { TheSportsDBService } from "../services/the-sports-db";
 import { APIFootballDotComService } from "../services/api-football-com";
+import { RapidAPIFootballService } from "../services/rapidapi-football";
 import { FootballApiService, NormalizedFixture } from "../services/football-api.interface";
 import axios from 'axios';
 import * as cheerio from 'cheerio';
@@ -44,6 +45,9 @@ export class ScraperAgent {
     }
     if (config.footballApis.api4.enabled && config.footballApis.api4.apiKey) {
       services.push({ name: 'apifootball.com', service: new APIFootballDotComService(config.footballApis.api4.apiKey) });
+    }
+    if (config.footballApis.api5?.enabled && config.footballApis.api5?.apiKey) {
+      services.push({ name: 'rapidapi.com', service: new RapidAPIFootballService(config.footballApis.api5.apiKey) });
     }
     
     console.log(`[SCRAPER] Active APIs found in config: ${services.map(s => s.name).join(', ') || 'None'}`);

@@ -25,10 +25,11 @@ const TABS = [
 ];
 
 const FOOTBALL_PROVIDERS = [
-  { id: 'api1', name: 'API-Football (RapidAPI)', url: 'rapidapi.com' },
+  { id: 'api1', name: 'API-Football (Sports)', url: 'api-sports.io' },
   { id: 'api2', name: 'Football-Data.org', url: 'football-data.org' },
   { id: 'api3', name: 'TheSportsDB.com', url: 'thesportsdb.com' },
   { id: 'api4', name: 'APIFootball.com', url: 'apifootball.com' },
+  { id: 'api5', name: 'RapidAPI Football', url: 'rapidapi.com' },
 ];
 
 const fadeIn = {
@@ -680,7 +681,7 @@ export default function AdminPage() {
                       </button>
                     </div>
                     <div className="space-y-3">
-                      {['api-sports.io', 'football-data.org', 'thesportsdb.com', 'apifootball.com'].map(apiName => {
+                      {['api-sports.io', 'football-data.org', 'thesportsdb.com', 'apifootball.com', 'rapidapi.com'].map(apiName => {
                         const s = sourceStatuses[apiName] || { status: 'unknown' };
                         const isConnected = s.status === 'connected';
                         const isDisabled = s.status === 'disabled';
