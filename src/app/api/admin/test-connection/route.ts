@@ -18,6 +18,10 @@ export async function POST(request: Request) {
       else if (provider === 'api2') service = new FootballDataService(apiKey);
       else if (provider === 'api3') service = new TheSportsDBService(apiKey);
       else if (provider === 'api4') service = new APIFootballDotComService(apiKey);
+      else if (provider === 'api5') {
+        const { RapidAPIFootballService } = require("@/lib/services/rapidapi-football");
+        service = new RapidAPIFootballService(apiKey);
+      }
       
       if (service) {
         const success = await service.testConnection();
