@@ -114,6 +114,26 @@ export default function AdminPage() {
   const [historySearch, setHistorySearch] = useState('');
   const [historyPageInput, setHistoryPageInput] = useState('');
   const [selectedSlip, setSelectedSlip] = useState<any>(null);
+  const [pushing, setPushing] = useState<Record<string, boolean>>({});
+
+  const pushToNeuralBets = async (slipId: string) => {
+    setPushing(p => ({ ...p, [slipId]: true }));
+    try {
+      const res = await fetch('/api/external/push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slipId })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+      showNotification('Slip successfully pushed to Neural-Bets', 'success');
+    } catch (e: any) {
+      console.error(e);
+      showNotification(`Failed to push: ${e.message}`, 'error');
+    } finally {
+      setPushing(p => ({ ...p, [slipId]: false }));
+    }
+  };
 
   /* ── Load Scraped Data ─────────────────────────────────────── */
   const loadScrapedData = async (pageNum = page, search = searchQuery) => {
@@ -1066,6 +1086,16 @@ export default function AdminPage() {
                                     title="Mark as Lost"
                                   >
                                     <X size={14} />
+                                  </button>
+                                  <button
+                                    onClick={() => pushToNeuralBets(slip.id)}
+                                    disabled={pushing[slip.id]}
+                                    className={`p-1 rounded transition-colors ${
+                                      pushing[slip.id] ? 'bg-primary/5 text-primary' : 'bg-primary/10 text-primary hover:bg-primary/20'
+                                    }`}
+                                    title="Push to Neural-Bets"
+                                  >
+                                    {pushing[slip.id] ? <Loader2 size={14} className="animate-spin" /> : <Share2 size={14} />}
                                   </button>
                                 </div>
                               </td>
