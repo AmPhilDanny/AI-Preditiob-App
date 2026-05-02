@@ -435,21 +435,34 @@ export default function HomePage() {
         >
           <div className="card-base flex flex-col h-[500px] overflow-hidden border-primary/20 shadow-2xl shadow-primary/5">
             {/* Chat Header */}
-            <div className="px-6 py-4 border-b border-border bg-secondary/50 flex items-center justify-between">
+            <div className="px-4 py-3 border-b border-border bg-secondary/50 flex items-center justify-between gap-2 flex-wrap">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
                   <MessageSquare size={16} className="text-primary" /> AI Assistant
                 </h3>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {/* Tier toggles — always visible */}
+                {[1, 2, 5, 10].map(t => (
+                  <button
+                    key={t}
+                    onClick={() => setTargets(prev => prev.includes(t) ? (prev.length > 1 ? prev.filter(x => x !== t) : prev) : [...prev, t])}
+                    className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-all ${
+                      targets.includes(t) ? 'bg-primary/10 text-primary border-primary/30' : 'bg-secondary/80 text-muted-foreground border-border'
+                    }`}
+                    title={t === 1 ? 'Free Bet (1 match)' : `${t}× Accumulator`}
+                  >
+                    {t === 1 ? 'FREE' : `${t}×`}
+                  </button>
+                ))}
                 <button 
                   onClick={fetchData}
                   disabled={loading}
-                  className="btn-primary py-1 px-3 text-[10px] h-8"
+                  className="btn-primary py-1 px-3 text-[10px] h-8 ml-1"
                 >
                   {loading ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} />}
-                  Generate Slips
+                  Generate
                 </button>
               </div>
             </div>
@@ -878,9 +891,12 @@ export default function HomePage() {
                             <div key={si} className="p-6 space-y-4 hover:bg-secondary/20 transition-colors">
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-4">
-                                  <span className="text-[10px] font-black text-muted-foreground w-20 shrink-0 uppercase tracking-widest">Target {slip.targetOdds}×</span>
+                                  <span className="text-[10px] font-black text-muted-foreground w-20 shrink-0 uppercase tracking-widest">
+                                    {slip.targetOdds <= 1.1 ? 'Free Bet' : `Target ${slip.targetOdds}×`}
+                                  </span>
                                   <span className="font-display font-black text-foreground text-xl">{slip.totalOdds}×</span>
                                   <span className="badge badge-purple text-[10px] font-bold">{slip.confidence}% conf.</span>
+                                  {slip.category && <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${slip.category === 'FREE' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-primary/10 text-primary border-primary/20'}`}>{slip.category}</span>}
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <button
