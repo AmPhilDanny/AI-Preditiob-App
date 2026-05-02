@@ -34,12 +34,28 @@ export async function POST() {
       return NextResponse.json({ success: false, error: 'No AI provider enabled or API key missing' }, { status: 400 });
     }
 
+    const allEnabledProviders: Array<{ provider: 'gemini' | 'grok' | 'mistral' | 'openrouter'; apiKey: string; model: string }> = [];
+    if (config.aiProviders.gemini.enabled && config.aiProviders.gemini.apiKey) {
+      allEnabledProviders.push({ provider: 'gemini', apiKey: config.aiProviders.gemini.apiKey, model: config.aiProviders.gemini.model });
+    }
+    if (config.aiProviders.grok.enabled && config.aiProviders.grok.apiKey) {
+      allEnabledProviders.push({ provider: 'grok', apiKey: config.aiProviders.grok.apiKey, model: 'grok-beta' });
+    }
+    if (config.aiProviders.mistral.enabled && config.aiProviders.mistral.apiKey) {
+      allEnabledProviders.push({ provider: 'mistral', apiKey: config.aiProviders.mistral.apiKey, model: config.aiProviders.mistral.model });
+    }
+    if (config.aiProviders.openrouter.enabled && config.aiProviders.openrouter.apiKey) {
+      allEnabledProviders.push({ provider: 'openrouter', apiKey: config.aiProviders.openrouter.apiKey, model: config.aiProviders.openrouter.model });
+    }
+
     const aiConfig: AIConfig = {
       provider,
       apiKey,
       model,
-      systemPrompt: config.agentPrompts.processor
+      systemPrompt: config.agentPrompts.processor,
+      allEnabledProviders
     };
+
 
     const processor = new ProcessorAgent(aiConfig);
     const count = await processor.processRawData(3);

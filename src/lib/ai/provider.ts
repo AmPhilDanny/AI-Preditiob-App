@@ -8,10 +8,9 @@ export interface AIConfig {
   apiKey: string;
   model: string;
   systemPrompt?: string;
-  fallbackProvider?: AIProvider;
-  fallbackApiKey?: string;
-  fallbackModel?: string;
+  allEnabledProviders?: Array<{ provider: AIProvider; apiKey: string; model: string }>;
 }
+
 
 export interface PredictionResult {
   match: string;
@@ -98,9 +97,9 @@ export class AIFactory {
     this.config = config;
   }
 
-  // ── Unified call with automatic fallback ───────────────────────────────────
+  // ── Unified call with multi-provider fallback chain ───────────────────────
   private async callWithFallback(systemPrompt: string, userContent: string): Promise<{ text: string; usedFallback: boolean }> {
-    // Try primary
+    // 1. Try the primary provider first
     try {
       const text = await callProvider(
         this.config.provider,
@@ -112,29 +111,37 @@ export class AIFactory {
       return { text, usedFallback: false };
     } catch (primaryErr: any) {
       console.warn(`[AI] Primary (${this.config.provider}) failed: ${primaryErr.message}`);
-      if (primaryErr.stack) console.error(primaryErr.stack);
 
-      // Try fallback
-      if (this.config.fallbackProvider && this.config.fallbackApiKey) {
+      // 2. Try the chain of other enabled providers
+      const fallbacks = this.config.allEnabledProviders?.filter(p => p.provider !== this.config.provider) || [];
+      
+      if (fallbacks.length === 0) {
+        throw primaryErr;
+      }
+
+      console.log(`[AI] Primary failed. Attempting fallback chain of ${fallbacks.length} providers...`);
+
+      for (const fallback of fallbacks) {
         try {
           const text = await callProvider(
-            this.config.fallbackProvider,
-            this.config.fallbackApiKey,
-            this.config.fallbackModel || '',
+            fallback.provider,
+            fallback.apiKey,
+            fallback.model,
             systemPrompt,
             userContent
           );
-          console.log(`[AI] Switched to fallback: ${this.config.fallbackProvider}`);
+          console.log(`[AI] Successfully recovered using fallback: ${fallback.provider}`);
           return { text, usedFallback: true };
         } catch (fallbackErr: any) {
-          console.error(`[AI] Fallback (${this.config.fallbackProvider}) also failed: ${fallbackErr.message}`);
-          throw new Error(`All AI providers failed. Primary: ${primaryErr.message} | Fallback: ${fallbackErr.message}`);
+          console.error(`[AI] Fallback (${fallback.provider}) also failed: ${fallbackErr.message}`);
+          // Continue to next fallback in chain
         }
       }
 
-      throw primaryErr;
+      throw new Error(`All enabled AI providers failed. Final error: ${primaryErr.message}`);
     }
   }
+
 
   // ── General analysis (chat & process) ─────────────────────────────────────
   async process(data: any, userPrompt?: string): Promise<any> {

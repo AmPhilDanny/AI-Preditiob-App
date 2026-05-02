@@ -11,12 +11,12 @@ export async function POST(request: Request) {
     // ── Primary provider selection ──────────────────────────────────────────
     let provider: 'gemini' | 'grok' | 'mistral' | 'openrouter' = 'gemini';
     let apiKey = '';
-    let model = 'gemini-2.5-flash';
+    let model = 'gemini-1.5-flash';
 
     if (config.aiProviders.gemini.enabled && config.aiProviders.gemini.apiKey) {
       provider = 'gemini';
       apiKey = config.aiProviders.gemini.apiKey;
-      model = config.aiProviders.gemini.model || 'gemini-2.5-flash';
+      model = config.aiProviders.gemini.model || 'gemini-1.5-flash';
     } else if (config.aiProviders.mistral.enabled && config.aiProviders.mistral.apiKey) {
       provider = 'mistral';
       apiKey = config.aiProviders.mistral.apiKey;
@@ -25,6 +25,10 @@ export async function POST(request: Request) {
       provider = 'openrouter';
       apiKey = config.aiProviders.openrouter.apiKey;
       model = config.aiProviders.openrouter.model || 'google/gemini-2.0-flash-001';
+    } else if (config.aiProviders.grok.enabled && config.aiProviders.grok.apiKey) {
+      provider = 'grok';
+      apiKey = config.aiProviders.grok.apiKey;
+      model = 'grok-beta';
     }
 
     if (!apiKey) {
@@ -35,21 +39,19 @@ export async function POST(request: Request) {
       });
     }
 
-    // ── Fallback selection (Gemini -> Mistral -> OpenRouter) ────────────────────────
-    let fallbackProvider: 'mistral' | 'openrouter' | undefined;
-    let fallbackApiKey: string | undefined;
-    let fallbackModel: string | undefined;
-
-    if (provider === 'gemini') {
-      if (config.aiProviders.mistral.enabled && config.aiProviders.mistral.apiKey) {
-        fallbackProvider = 'mistral';
-        fallbackApiKey = config.aiProviders.mistral.apiKey;
-        fallbackModel = config.aiProviders.mistral.model || 'mistral-large-latest';
-      } else if (config.aiProviders.openrouter.enabled && config.aiProviders.openrouter.apiKey) {
-        fallbackProvider = 'openrouter';
-        fallbackApiKey = config.aiProviders.openrouter.apiKey;
-        fallbackModel = config.aiProviders.openrouter.model || 'google/gemini-2.0-flash-001';
-      }
+    // ── Build Full Fallback Chain ──────────────────────────────────────────
+    const allEnabledProviders: Array<{ provider: 'gemini' | 'grok' | 'mistral' | 'openrouter'; apiKey: string; model: string }> = [];
+    if (config.aiProviders.gemini.enabled && config.aiProviders.gemini.apiKey) {
+      allEnabledProviders.push({ provider: 'gemini', apiKey: config.aiProviders.gemini.apiKey, model: config.aiProviders.gemini.model || 'gemini-1.5-flash' });
+    }
+    if (config.aiProviders.mistral.enabled && config.aiProviders.mistral.apiKey) {
+      allEnabledProviders.push({ provider: 'mistral', apiKey: config.aiProviders.mistral.apiKey, model: config.aiProviders.mistral.model || 'mistral-large-latest' });
+    }
+    if (config.aiProviders.openrouter.enabled && config.aiProviders.openrouter.apiKey) {
+      allEnabledProviders.push({ provider: 'openrouter', apiKey: config.aiProviders.openrouter.apiKey, model: config.aiProviders.openrouter.model || 'google/gemini-2.0-flash-001' });
+    }
+    if (config.aiProviders.grok.enabled && config.aiProviders.grok.apiKey) {
+      allEnabledProviders.push({ provider: 'grok', apiKey: config.aiProviders.grok.apiKey, model: 'grok-beta' });
     }
 
     const aiConfig: AIConfig = {
@@ -57,10 +59,9 @@ export async function POST(request: Request) {
       apiKey,
       model,
       systemPrompt: config.agentPrompts.analyst || "You are an expert football data analyst. Use the provided match data to answer questions about Goal-Goal (GG), Over/Under 2.5, 1X2, and other betting markets. Always be precise and point out high-probability matches.",
-      fallbackProvider,
-      fallbackApiKey,
-      fallbackModel,
+      allEnabledProviders
     };
+
 
     const ai = new AIFactory(aiConfig);
 
