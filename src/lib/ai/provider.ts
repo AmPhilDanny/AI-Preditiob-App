@@ -143,13 +143,29 @@ export class AIFactory {
   }
 
 
-  // ── General analysis (chat & process) ─────────────────────────────────────
+  // ── Natural Chat (Conversation focused) ───────────────────────────────────
+  async chat(message: string, history: any[] = []): Promise<{ text: string; usedFallback: boolean }> {
+    const systemPrompt = this.config.systemPrompt || "You are a helpful football assistant.";
+    const historySection = history.length > 0 
+      ? `CONVERSATION HISTORY:\n${history.map(h => `${h.role.toUpperCase()}: ${h.content}`).join('\n')}\n\n`
+      : "";
+    
+    const userContent = `${historySection}USER MESSAGE: ${message}`;
+    
+    try {
+      return await this.callWithFallback(systemPrompt, userContent);
+    } catch (err: any) {
+      return { text: `Error: ${err.message}`, usedFallback: false };
+    }
+  }
+
+  // ── Data Processing (Organization focused) ───────────────────────────────────
   async process(data: any, userPrompt?: string): Promise<any> {
     const systemPrompt = this.config.systemPrompt || "You are an expert football analyst. Provide clear, data-driven betting insights.";
     const inputJson = JSON.stringify(data).substring(0, 100000);
-    const userContent = userPrompt
-      ? `${userPrompt}\n\nMATCH DATA:\n${inputJson}`
-      : `Analyze this match data and provide betting insights:\n\n${inputJson}`;
+    
+    // If a prompt is provided, we assume it already contains the necessary context
+    const userContent = userPrompt || `Analyze this match data and provide betting insights:\n\n${inputJson}`;
 
     try {
       const { text, usedFallback } = await this.callWithFallback(systemPrompt, userContent);
@@ -162,6 +178,7 @@ export class AIFactory {
       };
     }
   }
+
 
   // ── Batch prediction — returns all predictions for a set of matches ─────────
   async predictBatch(
