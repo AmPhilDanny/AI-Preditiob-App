@@ -58,9 +58,17 @@ export async function POST(request: Request) {
       provider,
       apiKey,
       model,
-      systemPrompt: config.agentPrompts.analyst || "You are an expert football data analyst. Use the provided match data to answer questions about Goal-Goal (GG), Over/Under 2.5, 1X2, and other betting markets. Always be precise and point out high-probability matches.",
+      systemPrompt: (config.agentPrompts.analyst || "You are an expert football data analyst.") + 
+        "\n\nSTRICT INSTRUCTIONS:\n" +
+        "1. ALWAYS respond in RICH MARKDOWN format.\n" +
+        "2. Use tables for match comparisons.\n" +
+        "3. Use bold text for team names and key predictions.\n" +
+        "4. Use bullet points for reasoning.\n" +
+        "5. NEVER return raw JSON or plain unformatted text.\n" +
+        "6. If the user asks for Goal-Goal (GG) or Over/Under, provide a clear structured breakdown.",
       allEnabledProviders
     };
+
 
 
     const ai = new AIFactory(aiConfig);
