@@ -80,7 +80,7 @@ async function callProvider(
   userContent: string
 ): Promise<string> {
   if (provider === 'gemini') {
-    return callGemini(apiKey, model || 'gemini-2.5-flash', [systemPrompt, userContent]);
+    return callGemini(apiKey, model || 'gemini-1.5-flash', [systemPrompt, userContent]);
   }
   if (provider === 'mistral') {
     return callMistral(apiKey, model || 'mistral-large-latest', systemPrompt, userContent);

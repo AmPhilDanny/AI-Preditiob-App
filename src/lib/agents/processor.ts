@@ -28,32 +28,33 @@ export class ProcessorAgent {
       return 0;
     }
 
-    console.log(`Processor Agent: Found ${rawData.length} records. Sending to AI for organization...`);
+    console.log(`Processor Agent: Found ${rawData.length} records. sending to AI...`);
 
     // 2. Use AI to organize data
     const result = await this.aiFactory.process(rawData);
 
     if (!result.success) {
       console.error(`Processor Agent: AI Processing failed: ${result.summary}`);
+      // Even if AI fails, we might want to log that it failed in the DB for visibility
     }
 
     // 3. Save processed data
-    // We sanitize rawData to ensure it's plain JSON (no Date objects) before saving
-    const sanitizedData = JSON.parse(JSON.stringify(rawData));
+    const sanitizedData = JSON.parse(JSON.stringify(rawData.slice(0, 500))); // Limit stored data to 500 records to prevent DB bloat
 
     await prisma.processedData.create({
       data: {
         matchDate: new Date(),
-        homeTeam: "Daily Analysis",
-        awayTeam: "All Matches",
+        homeTeam: "Intelligence Summary",
+        awayTeam: `Analysis of ${rawData.length} matches`,
         league: "Global Intelligence",
         summary: result.summary,
         structuredData: sanitizedData
       }
     });
 
-    console.log(`Processor Agent: Successfully organized ${rawData.length} records into daily intelligence.`);
+    console.log(`Processor Agent: Successfully organized ${rawData.length} records. AI Summary length: ${result.summary.length}`);
     return rawData.length;
+
   }
 
   async cleanupOldData(days: number = 10): Promise<{ scraped: number; processed: number }> {
