@@ -109,6 +109,11 @@ export default function AdminPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [pageInput, setPageInput] = useState('');
   
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTotalPages, setHistoryTotalPages] = useState(1);
+  const [historySearch, setHistorySearch] = useState('');
+  const [historyPageInput, setHistoryPageInput] = useState('');
+
   const [processedPage, setProcessedPage] = useState(1);
   const [processedTotalPages, setProcessedTotalPages] = useState(1);
   const [processedPageInput, setProcessedPageInput] = useState('');
