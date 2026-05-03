@@ -117,6 +117,9 @@ export default function AdminPage() {
   const [processedPage, setProcessedPage] = useState(1);
   const [processedTotalPages, setProcessedTotalPages] = useState(1);
   const [processedPageInput, setProcessedPageInput] = useState('');
+  const [processedTotal, setProcessedTotal] = useState(0);
+  const [processedLoading, setProcessedLoading] = useState(false);
+  const [processedError, setProcessedError] = useState<string | null>(null);
   const [recentScrapedCount, setRecentScrapedCount] = useState<number | null>(null);
   
   const [selectedSlip, setSelectedSlip] = useState<any>(null);
@@ -228,24 +231,39 @@ export default function AdminPage() {
 
   /* ── Load Processed Data ─────────────────────────────────────── */
   const loadProcessedData = async (pageNum = processedPage) => {
+    setProcessedLoading(true);
+    setProcessedError(null);
     try {
       const res = await fetch(`/api/admin/processed-data?page=${pageNum}`);
+      console.log('[Intelligence] API response status:', res.status);
       const json = await res.json();
+      console.log('[Intelligence] API response:', JSON.stringify({ success: json.success, dataLength: json.data?.length, pagination: json.pagination, error: json.error }));
       if (json.success) {
-        setProcessedData(json.data);
-        setProcessedPage(json.pagination.page);
-        setProcessedTotalPages(json.pagination.totalPages);
-        setProcessedPageInput(json.pagination.page.toString());
+        setProcessedData(json.data || []);
+        setProcessedPage(json.pagination?.page || 1);
+        setProcessedTotalPages(json.pagination?.totalPages || 1);
+        setProcessedTotal(json.pagination?.total || 0);
+        setProcessedPageInput((json.pagination?.page || 1).toString());
         
         // Also fetch total scraped count to check if we HAVE data to process
-        const scrapeRes = await fetch('/api/admin/scraped-data?page=1');
-        const scrapeJson = await scrapeRes.json();
-        if (scrapeJson.success) {
-            setRecentScrapedCount(scrapeJson.pagination.totalCount || 0);
+        try {
+          const scrapeRes = await fetch('/api/admin/scraped-data?page=1');
+          const scrapeJson = await scrapeRes.json();
+          if (scrapeJson.success) {
+            setRecentScrapedCount(scrapeJson.pagination?.totalCount || 0);
+          }
+        } catch (scrapeErr) {
+          console.error('[Intelligence] Failed to fetch scraped count:', scrapeErr);
         }
+      } else {
+        setProcessedError(json.error || 'Failed to load intelligence data');
+        console.error('[Intelligence] API error:', json.error);
       }
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      setProcessedError(e.message || 'Network error');
+      console.error('[Intelligence] Load error:', e);
+    } finally {
+      setProcessedLoading(false);
     }
   };
 
@@ -961,7 +979,16 @@ export default function AdminPage() {
                   <div className="px-6 py-4 border-b border-border flex items-center justify-between">
                     <h3 className="font-semibold text-sm text-foreground flex items-center gap-2">
                       <Brain size={16} className="text-amber-500" /> Intelligence Storage
-                      {processedData.length > 0 && <span className="badge badge-purple">{processedData.length} entries</span>}
+                      {processedTotal > 0 && (
+                        <span className="badge badge-purple">
+                          {processedTotal} report{processedTotal !== 1 ? 's' : ''}
+                        </span>
+                      )}
+                      {recentScrapedCount !== null && recentScrapedCount > 0 && (
+                        <span className="badge badge-gray text-[10px]">
+                          {recentScrapedCount.toLocaleString()} raw records
+                        </span>
+                      )}
                     </h3>
                     <div className="flex items-center gap-2">
                       <button 
@@ -980,13 +1007,33 @@ export default function AdminPage() {
                         {isCleaning ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                         Clean Old Data
                       </button>
-                      <button className="btn-icon" onClick={() => loadProcessedData()}>
+                      <button className="btn-icon" onClick={() => loadProcessedData(1)} title="Refresh">
                         <RefreshCcw size={14} />
                       </button>
                     </div>
                   </div>
 
-                  {processedData.length > 0 ? (
+                  {/* Loading state */}
+                  {processedLoading && (
+                    <div className="px-6 py-12 flex items-center justify-center gap-3 text-muted-foreground">
+                      <Loader2 size={20} className="animate-spin" />
+                      <span className="text-sm">Loading intelligence reports…</span>
+                    </div>
+                  )}
+
+                  {/* Error state */}
+                  {!processedLoading && processedError && (
+                    <div className="m-6 p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive flex items-center gap-3">
+                      <AlertTriangle size={16} className="shrink-0" />
+                      <div>
+                        <p className="text-sm font-semibold">Failed to load intelligence data</p>
+                        <p className="text-xs mt-1">{processedError}</p>
+                      </div>
+                      <button className="ml-auto btn-ghost text-xs" onClick={() => loadProcessedData(1)}>Retry</button>
+                    </div>
+                  )}
+
+                  {!processedLoading && !processedError && processedData.length > 0 ? (
                     <div className="overflow-hidden">
                       <div className="p-6 space-y-4 max-h-[800px] overflow-y-auto">
                         {processedData.map(d => (
@@ -1000,7 +1047,7 @@ export default function AdminPage() {
                               </div>
                               <div className="flex items-center gap-2">
                                 <span className="badge badge-purple">
-                                  {Array.isArray(d.structuredData) ? d.structuredData.length : 'Object'} Items Analyzed
+                                  {d.itemCount ?? (Array.isArray(d.structuredData) ? d.structuredData.length : 0)} Matches Processed
                                 </span>
                               </div>
                             </div>
@@ -1011,11 +1058,11 @@ export default function AdminPage() {
                               </ReactMarkdown>
                             </div>
 
-                            {/* Data Snippet (Head 5) */}
+                            {/* Data Snippet Preview (First 5 rows) */}
                             {Array.isArray(d.structuredData) && d.structuredData.length > 0 && (
                               <div className="mt-6 pt-4 border-t border-border/50">
                                 <div className="flex items-center justify-between mb-3">
-                                  <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Match Intelligence Preview (First 5 Rows)</h4>
+                                  <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Match Intelligence Preview (Top {Math.min(d.structuredData.length, 5)} of {d.itemCount ?? d.structuredData.length})</h4>
                                   <span className="text-[9px] text-muted-foreground font-mono">Snapshot Hash: {d.id.substring(0, 8)}</span>
                                 </div>
                                 <div className="grid grid-cols-1 gap-2">
@@ -1029,18 +1076,18 @@ export default function AdminPage() {
                                       <div className="flex items-center gap-2 shrink-0">
                                         {m.odds && (
                                           <div className="flex gap-1">
-                                            <span className="text-[9px] font-mono text-primary/70">{m.odds.home?.toFixed(2)}</span>
-                                            <span className="text-[9px] font-mono text-muted-foreground">{m.odds.draw?.toFixed(2)}</span>
-                                            <span className="text-[9px] font-mono text-primary/70">{m.odds.away?.toFixed(2)}</span>
+                                            <span className="text-[9px] font-mono text-primary/70">{typeof m.odds.home === 'number' ? m.odds.home.toFixed(2) : m.odds.home}</span>
+                                            <span className="text-[9px] font-mono text-muted-foreground">{typeof m.odds.draw === 'number' ? m.odds.draw.toFixed(2) : m.odds.draw}</span>
+                                            <span className="text-[9px] font-mono text-primary/70">{typeof m.odds.away === 'number' ? m.odds.away.toFixed(2) : m.odds.away}</span>
                                           </div>
                                         )}
                                         <span className="badge badge-gray text-[8px] px-1 py-0">{m.sourceApi}</span>
                                       </div>
                                     </div>
                                   ))}
-                                  {d.structuredData.length > 5 && (
+                                  {(d.itemCount ?? d.structuredData.length) > 5 && (
                                     <p className="text-[9px] text-center text-muted-foreground italic mt-1">
-                                      + {d.structuredData.length - 5} more records stored in intelligence memory
+                                      + {(d.itemCount ?? d.structuredData.length) - 5} more records stored in intelligence memory
                                     </p>
                                   )}
                                 </div>
@@ -1054,7 +1101,7 @@ export default function AdminPage() {
                       {processedTotalPages > 1 && (
                         <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-secondary/10">
                           <span className="text-xs text-muted-foreground">
-                            Intelligence Report {processedPage} of {processedTotalPages}
+                            Page {processedPage} of {processedTotalPages} ({processedTotal} total reports)
                           </span>
                           <div className="flex gap-2">
                             <button 
@@ -1093,6 +1140,7 @@ export default function AdminPage() {
                       )}
                     </div>
                   ) : (
+                    !processedLoading && !processedError && (
                     <div className="px-6 py-20 text-center space-y-6">
                       <div className="flex justify-center">
                         <div className="p-4 rounded-full bg-secondary/30 text-muted-foreground/30">
@@ -1130,6 +1178,7 @@ export default function AdminPage() {
                         </button>
                       </div>
                     </div>
+                    )
                   )}
                 </div>
               </motion.div>
