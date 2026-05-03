@@ -241,7 +241,7 @@ export default function AdminPage() {
         const scrapeRes = await fetch('/api/admin/scraped-data?page=1');
         const scrapeJson = await scrapeRes.json();
         if (scrapeJson.success) {
-            setRecentScrapedCount(scrapeJson.pagination.total);
+            setRecentScrapedCount(scrapeJson.pagination.totalCount || 0);
         }
       }
     } catch (e) {

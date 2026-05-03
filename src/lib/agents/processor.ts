@@ -8,7 +8,7 @@ export class ProcessorAgent {
     this.aiFactory = new AIFactory(config);
   }
 
-  async processRawData(days: number = 7): Promise<number> {
+  async processRawData(days: number = 30): Promise<number> {
     console.log(`Processor Agent: Starting data organization for the last ${days} days...`);
 
     // 1. Fetch raw scraped data
