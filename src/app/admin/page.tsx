@@ -972,7 +972,7 @@ export default function AdminPage() {
                         {isCleaning ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                         Clean Old Data
                       </button>
-                      <button className="btn-icon" onClick={loadProcessedData}>
+                      <button className="btn-icon" onClick={() => loadProcessedData()}>
                         <RefreshCcw size={14} />
                       </button>
                     </div>
