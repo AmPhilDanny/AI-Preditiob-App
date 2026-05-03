@@ -117,6 +117,7 @@ export default function AdminPage() {
   const [processedPage, setProcessedPage] = useState(1);
   const [processedTotalPages, setProcessedTotalPages] = useState(1);
   const [processedPageInput, setProcessedPageInput] = useState('');
+  const [recentScrapedCount, setRecentScrapedCount] = useState<number | null>(null);
   
   const [selectedSlip, setSelectedSlip] = useState<any>(null);
   const [pushing, setPushing] = useState<Record<string, boolean>>({});
@@ -235,6 +236,13 @@ export default function AdminPage() {
         setProcessedPage(json.pagination.page);
         setProcessedTotalPages(json.pagination.totalPages);
         setProcessedPageInput(json.pagination.page.toString());
+        
+        // Also fetch total scraped count to check if we HAVE data to process
+        const scrapeRes = await fetch('/api/admin/scraped-data?page=1');
+        const scrapeJson = await scrapeRes.json();
+        if (scrapeJson.success) {
+            setRecentScrapedCount(scrapeJson.pagination.total);
+        }
       }
     } catch (e) {
       console.error(e);
@@ -1085,8 +1093,42 @@ export default function AdminPage() {
                       )}
                     </div>
                   ) : (
-                    <div className="px-6 py-12 text-center text-muted-foreground text-sm">
-                      No processed intelligence found. Run the Processor Agent to organize raw scraped data.
+                    <div className="px-6 py-20 text-center space-y-6">
+                      <div className="flex justify-center">
+                        <div className="p-4 rounded-full bg-secondary/30 text-muted-foreground/30">
+                          <Brain size={48} />
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="text-lg font-semibold text-foreground">No Processed Intelligence Found</h4>
+                        <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
+                          The Processor Agent has not generated any intelligence reports yet. 
+                          {recentScrapedCount !== null && recentScrapedCount > 0 ? (
+                            <span className="text-primary block mt-2 font-medium">
+                              System detected {recentScrapedCount} raw match records available for processing.
+                            </span>
+                          ) : (
+                            <span className="text-destructive block mt-2 font-medium">
+                              Warning: No raw match data found in memory. Run the Scraper first!
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <div className="flex justify-center gap-3">
+                        <button 
+                          className="btn-primary" 
+                          onClick={triggerProcessing}
+                          disabled={isProcessing || (recentScrapedCount === 0)}
+                        >
+                          <Play size={14} /> Run Processor Agent
+                        </button>
+                        <button 
+                          className="btn-outline" 
+                          onClick={() => handleTabChange('data')}
+                        >
+                          <Globe size={14} /> Go to Scraper
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>

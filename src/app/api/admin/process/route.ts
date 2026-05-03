@@ -58,7 +58,7 @@ export async function POST() {
 
 
     const processor = new ProcessorAgent(aiConfig);
-    const count = await processor.processRawData(3);
+    const count = await processor.processRawData(7);
 
     return NextResponse.json({ success: true, count });
   } catch (error: any) {
