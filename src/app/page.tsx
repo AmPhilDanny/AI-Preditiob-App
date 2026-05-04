@@ -110,6 +110,23 @@ export default function HomePage() {
     }
   };
 
+  const deleteIndividualSlip = async (slipId: string) => {
+    if (!confirm('Are you sure you want to delete this specific slip?')) return;
+    try {
+      const res = await fetch(`/api/history?slipId=${slipId}`, { method: 'DELETE' });
+      if (res.ok) {
+        showNotification('Slip deleted successfully', 'success');
+        fetchHistory(); // Refresh
+        // If it was in the current data state, remove it there too
+        if (data?.slips) {
+          setData({ ...data, slips: data.slips.filter((s: any) => s.id !== slipId) });
+        }
+      }
+    } catch (e) {
+      console.error('Failed to delete individual slip', e);
+    }
+  };
+
   // Agent Status State
   const [agents, setAgents] = useState({
     scraper:   { status: 'idle', lastRun: null as string | null },
@@ -802,6 +819,13 @@ export default function HomePage() {
                     >
                       {pushing[slip.id] ? <Loader2 size={14} className="animate-spin" /> : <Share2 size={14} />}
                     </button>
+                    <button
+                      onClick={() => deleteIndividualSlip(slip.id)}
+                      className="btn-secondary w-12 px-0 justify-center text-muted-foreground hover:text-destructive hover:border-destructive/30"
+                      title="Delete Slip"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 </div>
               </motion.div>
@@ -919,7 +943,14 @@ export default function HomePage() {
                                       slip.status === 'LOSS' ? 'bg-destructive text-white border-destructive' : 'bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/20'
                                     }`}
                                   >
-                                    LOSS
+                                    </button>
+                                  </div>
+                                  <button
+                                    onClick={() => deleteIndividualSlip(slip.id)}
+                                    className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                    title="Delete Slip"
+                                  >
+                                    <Trash2 size={12} />
                                   </button>
                                 </div>
                               </div>
