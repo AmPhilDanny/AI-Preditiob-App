@@ -51,11 +51,24 @@ export async function GET(request: Request) {
     allEnabledProviders.push({ provider: 'grok', apiKey: config.aiProviders.grok.apiKey, model: 'grok-beta' });
   }
 
+  // ── Fetch Latest Intelligence Summary ──────────────────────────────────
+  const latestIntelligence = await prisma.processedData.findFirst({
+    orderBy: { createdAt: 'desc' }
+  });
+
   const aiConfig: AIConfig = {
     provider,
     apiKey,
     model,
-    systemPrompt: `STRICT RULE: Focus EXCLUSIVELY on matches occurring TODAY (${new Date().toISOString().split('T')[0]}). Prioritize accuracy for these games. \n\n${config.agentPrompts.analyst || 'You are an expert football analyst. Predict match outcomes with high confidence.'}`,
+    systemPrompt: `STRICT RULE: Focus EXCLUSIVELY on matches occurring TODAY (${new Date().toISOString().split('T')[0]}). 
+    
+    SYSTEM INTELLIGENCE CONTEXT:
+    ${latestIntelligence?.summary || "No prior intelligence found."}
+    
+    INSTRUCTIONS:
+    1. Use the SYSTEM INTELLIGENCE CONTEXT to inform your analysis.
+    2. Prioritize accuracy and statistical value.
+    3. ${config.agentPrompts.analyst || 'You are an expert football analyst. Predict match outcomes with high confidence.'}`,
     allEnabledProviders
   };
 

@@ -97,3 +97,23 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
+export async function DELETE(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ success: false, error: 'ID is required' }, { status: 400 });
+    }
+
+    await prisma.processedData.delete({
+      where: { id }
+    });
+
+    return NextResponse.json({ success: true, message: 'Intelligence report deleted' });
+  } catch (error) {
+    console.error('Error deleting processed data:', error);
+    return NextResponse.json({ success: false, error: 'Failed to delete intelligence report' }, { status: 500 });
+  }
+}

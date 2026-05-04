@@ -142,6 +142,102 @@ Provide a structured analysis with:
       processed: deletedProcessed.count
     };
   }
+
+  async importManualData(rawText: string): Promise<any> {
+    console.log("Processor Agent: Parsing manual copy-paste data...");
+    
+    // Step 1: Use AI to extract structured match data from raw copy-paste text
+    const extractionPrompt = `
+      You are an expert data extractor. The following text is copied from a bookmaker website (like Bet365, 1xBet, etc.).
+      Extract all matches, leagues, dates, and odds (Home, Draw, Away, BTTS, Over 2.5) if available.
+      Return the output as a valid JSON object:
+      {
+        "matches": [
+          {
+            "homeTeam": "Team A",
+            "awayTeam": "Team B",
+            "league": "League X",
+            "matchDate": "ISO Date or null",
+            "odds": {
+              "home": 1.5,
+              "draw": 3.4,
+              "away": 5.0,
+              "btts": "Yes/No",
+              "over25": 1.8
+            }
+          }
+        ]
+      }
+      Return ONLY the JSON object.
+    `;
+
+    const { text: extractedJson } = await this.aiFactory.chat(
+      `Text to extract from:\n\n${rawText.substring(0, 15000)}`,
+      [{ role: 'system', content: extractionPrompt }]
+    );
+
+    let parsed;
+    try {
+      parsed = JSON.parse(extractedJson.replace(/```json|```/g, '').trim());
+    } catch (e) {
+      console.error("Failed to parse AI extraction result:", extractedJson);
+      throw new Error("AI failed to extract structured data from the text.");
+    }
+
+    if (!parsed.matches || !Array.isArray(parsed.matches)) {
+      throw new Error("No matches found in the provided text.");
+    }
+
+    // Step 2: Save to ScrapedData table
+    const savedRecords = [];
+    for (const m of parsed.matches) {
+      const record = await prisma.scrapedData.create({
+        data: {
+          homeTeam: m.homeTeam,
+          awayTeam: m.awayTeam,
+          league: m.league || "Unknown",
+          matchDate: m.matchDate ? new Date(m.matchDate) : null,
+          odds: m.odds || {},
+          sourceApi: "Manual Import",
+        }
+      });
+      savedRecords.push(record);
+    }
+
+    // Step 3: Create "Super Informed Analysis"
+    // Fetch recent database intelligence
+    const latestIntelligence = await prisma.processedData.findFirst({
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const analysisPrompt = `
+      You are a Master Football Analyst. We have just imported new match data from a bookmaker.
+      Your task is to compare these new matches with our existing system intelligence and provide a "Super Informed Analysis".
+      
+      NEW MATCHES IMPORTED:
+      ${JSON.stringify(parsed.matches, null, 2)}
+
+      EXISTING SYSTEM INTELLIGENCE:
+      ${latestIntelligence?.summary || "No prior intelligence found."}
+
+      Provide a high-impact Markdown report including:
+      1. **Match Previews**: Analysis of the new matches using both the new odds and our historical data.
+      2. **Strategic Insights**: Where do we see the most value?
+      3. **Final Recommendations**: Top 3 picks from this specific manual import.
+    `;
+
+    const { text: analysisResult } = await this.aiFactory.chat(
+      "Generate Super Informed Analysis.",
+      [{ role: 'system', content: analysisPrompt }]
+    );
+
+    return {
+      success: true,
+      count: savedRecords.length,
+      analysis: analysisResult,
+      matches: parsed.matches
+    };
+  }
 }
 
 /**

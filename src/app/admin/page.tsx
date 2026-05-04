@@ -10,7 +10,7 @@ import {
   Cpu, Terminal, Globe, Lock, Database, Shield,
   CheckCircle, RefreshCcw, Plus, Trash2, Eye, EyeOff,
   Zap, Activity, History, Server, LogOut, AlertTriangle,
-  Loader2, Play, Check, X, Brain, Search, Share2
+  Loader2, Play, Check, X, Brain, Search, Share2, Pencil
 } from 'lucide-react';
 
 const TABS = [
@@ -144,6 +144,57 @@ export default function AdminPage() {
     }
   };
 
+  const deleteScrapedRecord = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this scraped record?')) return;
+    try {
+      const res = await fetch(`/api/admin/scraped-data?id=${id}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (json.success) {
+        showNotification('Record deleted', 'success');
+        loadScrapedData();
+      } else {
+        showNotification(`Delete failed: ${json.error}`, 'error');
+      }
+    } catch (e) {
+      console.error(e);
+      showNotification('Failed to delete record', 'error');
+    }
+  };
+
+  const deleteProcessedRecord = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this intelligence report?')) return;
+    try {
+      const res = await fetch(`/api/admin/processed-data?id=${id}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (json.success) {
+        showNotification('Intelligence report deleted', 'success');
+        loadProcessedData();
+      } else {
+        showNotification(`Delete failed: ${json.error}`, 'error');
+      }
+    } catch (e) {
+      console.error(e);
+      showNotification('Failed to delete report', 'error');
+    }
+  };
+
+  const deleteSlip = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this prediction slip?')) return;
+    try {
+      const res = await fetch(`/api/history?slipId=${id}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (json.success) {
+        showNotification('Prediction slip deleted', 'success');
+        loadHistory();
+      } else {
+        showNotification(`Delete failed: ${json.error}`, 'error');
+      }
+    } catch (e) {
+      console.error(e);
+      showNotification('Failed to delete slip', 'error');
+    }
+  };
+
   /* ── Load Scraped Data ─────────────────────────────────────── */
   const loadScrapedData = async (pageNum = page, search = searchQuery) => {
     try {
@@ -193,6 +244,34 @@ export default function AdminPage() {
       console.error('Failed to trigger processor:', e);
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const [editingRecord, setEditingRecord] = useState<any>(null);
+  const [isUpdatingRecord, setIsUpdatingRecord] = useState(false);
+
+  const handleUpdateRecord = async () => {
+    if (!editingRecord) return;
+    setIsUpdatingRecord(true);
+    try {
+      const res = await fetch('/api/admin/scraped-data', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editingRecord)
+      });
+      const json = await res.json();
+      if (json.success) {
+        showNotification('Record updated successfully', 'success');
+        setEditingRecord(null);
+        loadScrapedData();
+      } else {
+        showNotification(`Update failed: ${json.error}`, 'error');
+      }
+    } catch (e) {
+      console.error(e);
+      showNotification('Failed to update record', 'error');
+    } finally {
+      setIsUpdatingRecord(false);
     }
   };
 
@@ -877,6 +956,7 @@ export default function AdminPage() {
                             <th>Odds (1x2)</th>
                             <th>Advanced (BTTS / O/U)</th>
                             <th>Form (Last 5)</th>
+                            <th>Action</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -915,6 +995,24 @@ export default function AdminPage() {
                                     <span>A: {d.rawStats.last5.away || 'N/A'}</span>
                                   </div>
                                 ) : '-'}
+                              </td>
+                              <td>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => setEditingRecord(d)}
+                                    className="p-1.5 rounded hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+                                    title="Edit Record"
+                                  >
+                                    <Pencil size={14} />
+                                  </button>
+                                  <button
+                                    onClick={() => deleteScrapedRecord(d.id)}
+                                    className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                    title="Delete Record"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           ))}
@@ -1049,6 +1147,13 @@ export default function AdminPage() {
                                 <span className="badge badge-purple">
                                   {d.itemCount ?? (Array.isArray(d.structuredData) ? d.structuredData.length : 0)} Matches Processed
                                 </span>
+                                <button
+                                  onClick={() => deleteProcessedRecord(d.id)}
+                                  className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors ml-2"
+                                  title="Delete Report"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
                               </div>
                             </div>
                             
@@ -1274,15 +1379,14 @@ export default function AdminPage() {
                                   >
                                     <X size={14} />
                                   </button>
-                                  <button
-                                    onClick={() => pushToNeuralBets(slip.id)}
-                                    disabled={pushing[slip.id]}
-                                    className={`p-1 rounded transition-colors ${
-                                      pushing[slip.id] ? 'bg-primary/5 text-primary' : 'bg-primary/10 text-primary hover:bg-primary/20'
-                                    }`}
-                                    title="Push to Neural-Bets"
-                                  >
                                     {pushing[slip.id] ? <Loader2 size={14} className="animate-spin" /> : <Share2 size={14} />}
+                                  </button>
+                                  <button
+                                    onClick={() => deleteSlip(slip.id)}
+                                    className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                    title="Delete Slip"
+                                  >
+                                    <Trash2 size={14} />
                                   </button>
                                 </div>
                               </td>
@@ -1653,6 +1757,110 @@ export default function AdminPage() {
 
         </main>
       </div>
+
+      {/* ── Edit Record Modal ───────────────────────────────── */}
+      <AnimatePresence>
+        {editingRecord && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="card-base w-full max-w-lg overflow-hidden shadow-2xl"
+            >
+              <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-secondary/20">
+                <h3 className="font-bold text-foreground">Edit Match Record</h3>
+                <button onClick={() => setEditingRecord(null)} className="p-2 hover:bg-secondary rounded-lg transition-colors">
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="section-label mb-1.5 block">Home Team</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={editingRecord.homeTeam}
+                      onChange={e => setEditingRecord({ ...editingRecord, homeTeam: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="section-label mb-1.5 block">Away Team</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={editingRecord.awayTeam}
+                      onChange={e => setEditingRecord({ ...editingRecord, awayTeam: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="section-label mb-1.5 block">League</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={editingRecord.league}
+                    onChange={e => setEditingRecord({ ...editingRecord, league: e.target.value })}
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-muted-foreground block mb-1">Home Odds</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="form-input py-1.5 px-2"
+                      value={editingRecord.odds?.home || 0}
+                      onChange={e => setEditingRecord({ 
+                        ...editingRecord, 
+                        odds: { ...editingRecord.odds, home: parseFloat(e.target.value) } 
+                      })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-muted-foreground block mb-1">Draw Odds</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="form-input py-1.5 px-2"
+                      value={editingRecord.odds?.draw || 0}
+                      onChange={e => setEditingRecord({ 
+                        ...editingRecord, 
+                        odds: { ...editingRecord.odds, draw: parseFloat(e.target.value) } 
+                      })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-muted-foreground block mb-1">Away Odds</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="form-input py-1.5 px-2"
+                      value={editingRecord.odds?.away || 0}
+                      onChange={e => setEditingRecord({ 
+                        ...editingRecord, 
+                        odds: { ...editingRecord.odds, away: parseFloat(e.target.value) } 
+                      })}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="px-6 py-4 border-t border-border bg-secondary/10 flex justify-end gap-3">
+                <button onClick={() => setEditingRecord(null)} className="btn-ghost">Cancel</button>
+                <button 
+                  onClick={handleUpdateRecord} 
+                  disabled={isUpdatingRecord}
+                  className="btn-primary"
+                >
+                  {isUpdatingRecord ? <Loader2 size={16} className="animate-spin mr-2" /> : <Check size={16} className="mr-2" />}
+                  Save Changes
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

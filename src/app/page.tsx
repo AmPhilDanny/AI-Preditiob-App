@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 
 import TicketValidator from '@/components/TicketValidator';
+import ManualDataImporter from '@/components/ManualDataImporter';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -608,6 +609,16 @@ export default function HomePage() {
         animate="show"
       >
         <TicketValidator />
+      </motion.section>
+
+      {/* ── Manual Data Importer ────────────────────────────── */}
+      <motion.section 
+        className="mb-12"
+        variants={fadeUp}
+        initial="hidden"
+        animate="show"
+      >
+        <ManualDataImporter />
       </motion.section>
 
       {/* ── Stats Overview ──────────────────────────────────── */}

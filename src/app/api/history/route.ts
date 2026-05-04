@@ -43,9 +43,18 @@ export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const sessionId = searchParams.get('sessionId');
+    const slipId = searchParams.get('slipId');
+
+    if (slipId) {
+      // Individual hard delete
+      await prisma.predictionSlip.delete({
+        where: { id: slipId }
+      });
+      return NextResponse.json({ success: true, message: 'Individual slip deleted' });
+    }
 
     if (!sessionId) {
-      return NextResponse.json({ success: false, error: 'Session ID required' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Session ID or Slip ID required' }, { status: 400 });
     }
 
     // Archive all slips in this session
@@ -59,7 +68,7 @@ export async function DELETE(request: Request) {
       data: { archived: true }
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: 'Session archived' });
   } catch (error: any) {
     console.error('Delete history error:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
