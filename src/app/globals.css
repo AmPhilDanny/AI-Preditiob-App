@@ -64,15 +64,28 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    @apply bg-background text-foreground font-sans antialiased font-medium;
     font-feature-settings: "rlig" 1, "calt" 1;
+    font-size: 16px;
+  }
+
+  @screen md {
+    body { font-size: 17px; }
+  }
+
+  @screen lg {
+    body { font-size: 18px; }
   }
 
   h1, h2, h3, h4, h5 {
-    @apply font-display;
+    @apply font-display font-black;
     letter-spacing: -0.03em;
     line-height: 1.1;
   }
+
+  h1 { @apply text-4xl md:text-5xl lg:text-7xl; }
+  h2 { @apply text-3xl md:text-4xl lg:text-5xl; }
+  h3 { @apply text-2xl md:text-3xl lg:text-4xl; }
 
   ::selection {
     @apply bg-primary/20 text-primary;

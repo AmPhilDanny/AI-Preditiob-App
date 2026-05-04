@@ -330,7 +330,7 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 pb-24">
+    <div className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-12 py-10 pb-24 space-y-12 md:space-y-20">
       {/* ── Notification Banner ────────────────────────────── */}
       <AnimatePresence>
         {notification && (
@@ -372,13 +372,13 @@ export default function HomePage() {
 
           <motion.h1
             variants={fadeUp}
-            className="font-display text-4xl sm:text-5xl font-black tracking-tight text-foreground leading-[1.1]"
+            className="font-display text-5xl sm:text-6xl lg:text-8xl font-black tracking-tight text-foreground leading-[1] mb-6"
           >
             Multi-Agent <br />
             <span className="gradient-text">Neural Consensus</span>
           </motion.h1>
 
-          <motion.p variants={fadeUp} className="text-muted-foreground text-lg leading-relaxed">
+          <motion.p variants={fadeUp} className="text-muted-foreground text-xl md:text-2xl font-semibold leading-relaxed max-w-xl">
             Communicate with your AI agents, analyze deep market trends, and generate winning slips with absolute precision.
           </motion.p>
 
@@ -407,7 +407,7 @@ export default function HomePage() {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5 }}
         >
-          <div className="card-base flex flex-col h-[500px] overflow-hidden border-primary/20 shadow-2xl shadow-primary/5">
+          <div className="card-base flex flex-col h-[600px] md:h-[650px] overflow-hidden border-primary/20 shadow-2xl shadow-primary/5">
             {/* Chat Header */}
             <div className="px-4 py-3 border-b border-border bg-secondary/50 flex items-center justify-between gap-2 flex-wrap">
               <div className="flex items-center gap-2">
@@ -617,14 +617,14 @@ export default function HomePage() {
         initial="hidden"
         animate="show"
       >
-        <motion.div variants={fadeUp} className="card-base p-5 flex flex-col gap-1">
+        <motion.div variants={fadeUp} className="card-base p-6 md:p-8 flex flex-col gap-2">
           <div className="flex items-center gap-2 mb-1">
-            <div className="p-1.5 rounded-lg bg-violet-500/10 text-violet-500">
-              <Target size={16} />
+            <div className="p-2 rounded-lg bg-violet-500/10 text-violet-500">
+              <Target size={20} />
             </div>
-            <p className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">Avg Accuracy</p>
+            <p className="text-[11px] uppercase font-black text-muted-foreground tracking-widest">Avg Accuracy</p>
           </div>
-          <p className="text-3xl font-display font-black text-foreground">78.4%</p>
+          <p className="text-4xl md:text-5xl font-display font-black text-foreground">78.4%</p>
         </motion.div>
 
         <motion.div variants={fadeUp} className="card-base p-5 flex flex-col gap-1">

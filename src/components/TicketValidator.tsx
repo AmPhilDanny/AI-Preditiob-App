@@ -70,18 +70,18 @@ export default function TicketValidator() {
   };
 
   return (
-    <div className="card-base p-6 md:p-8 space-y-8 bg-secondary/20 border-primary/20">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="font-display text-2xl font-black text-foreground flex items-center gap-3 uppercase tracking-tight">
-            <ShieldCheck className="text-emerald-500" /> Ticket Validator Agent
+    <div className="card-base p-6 sm:p-8 md:p-12 space-y-10 bg-secondary/20 border-primary/20">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div className="space-y-2">
+          <h2 className="font-display text-3xl md:text-5xl font-black text-foreground flex items-center gap-4 uppercase tracking-tight">
+            <ShieldCheck className="text-emerald-500 w-8 h-8 md:w-12 md:h-12" /> Ticket Validator
           </h2>
-          <p className="text-sm text-muted-foreground mt-1 font-medium">
+          <p className="text-base md:text-xl text-muted-foreground font-semibold max-w-2xl">
             Upload your bookmaker ticket for AI statistical validation and RAG analysis.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="badge badge-purple px-3 py-1">V AI Agent Active</span>
+        <div className="flex items-center gap-3">
+          <span className="badge badge-purple px-4 py-1.5 text-xs md:text-sm">V AI Agent Active</span>
         </div>
       </div>
 
@@ -210,17 +210,17 @@ export default function TicketValidator() {
                 key="result"
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="h-full border border-emerald-500/30 rounded-2xl p-6 bg-emerald-500/[0.02] flex flex-col"
+                className="h-full border-2 border-emerald-500/30 rounded-2xl p-6 md:p-10 bg-emerald-500/[0.04] flex flex-col shadow-xl shadow-emerald-500/5"
               >
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500">
-                    <CheckCircle2 size={16} />
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-500">
+                    <CheckCircle2 size={24} />
                   </div>
-                  <h3 className="font-bold text-foreground text-sm uppercase tracking-wider">Validation Verdict</h3>
+                  <h3 className="font-black text-foreground text-xl md:text-2xl uppercase tracking-wider">AI Verdict</h3>
                 </div>
 
-                <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
-                  <div className="prose prose-invert prose-sm max-w-none">
+                <div className="flex-1 overflow-y-auto pr-4 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+                  <div className="prose-chat prose-lg md:prose-xl max-w-none">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
                       {result.validationReport}
                     </ReactMarkdown>
