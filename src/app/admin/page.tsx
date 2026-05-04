@@ -1379,6 +1379,14 @@ export default function AdminPage() {
                                   >
                                     <X size={14} />
                                   </button>
+                                  <button
+                                    onClick={() => pushToNeuralBets(slip.id)}
+                                    disabled={pushing[slip.id]}
+                                    className={`p-1 rounded transition-colors ${
+                                      pushing[slip.id] ? 'bg-primary/5 text-primary' : 'bg-primary/10 text-primary hover:bg-primary/20'
+                                    }`}
+                                    title="Push to Neural-Bets"
+                                  >
                                     {pushing[slip.id] ? <Loader2 size={14} className="animate-spin" /> : <Share2 size={14} />}
                                   </button>
                                   <button
