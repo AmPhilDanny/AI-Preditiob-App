@@ -726,20 +726,25 @@ export default function HomePage() {
         )}
       </motion.section>
 
-      {/* ── Slip Cards ────────────────────────────────────────── */}
+    {/* ── Slip Cards ────────────────────────────────────────── */}
       {data?.slips && data.slips.length > 0 && (
         <motion.section
           variants={stagger}
           initial="hidden"
           animate="show"
-          className="space-y-6 mb-16"
+          className="space-y-8 mb-20"
         >
-          <motion.div variants={fadeUp} className="flex items-center justify-between">
-            <div>
-              <h2 className="font-display text-2xl font-black text-foreground uppercase tracking-tight">Premium Slips</h2>
-              <p className="text-sm text-muted-foreground mt-1 font-medium">Latest neural consensus picks</p>
+          <motion.div variants={fadeUp} className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-2xl bg-primary/10 text-primary">
+                <Shield size={28} />
+              </div>
+              <div>
+                <h2 className="font-display text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight">Neural Consensus</h2>
+                <p className="text-sm text-muted-foreground font-bold">High-probability neural network selections</p>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center p-1.5 bg-secondary/50 rounded-2xl border border-border w-fit">
               {[1, 2, 5, 10].map(t => (
                 <button
                   key={t}
@@ -747,8 +752,8 @@ export default function HomePage() {
                     setTargets(prev => prev.includes(t) ? (prev.length > 1 ? prev.filter(x => x !== t) : prev) : [...prev, t]);
                     fetchData();
                   }}
-                  className={`px-3 py-1.5 text-[10px] font-bold rounded-lg border transition-all ${
-                    targets.includes(t) ? 'bg-primary/10 text-primary border-primary/30' : 'bg-secondary text-muted-foreground border-border'
+                  className={`px-4 py-2 text-[10px] font-black rounded-xl transition-all ${
+                    targets.includes(t) ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   {t === 1 ? 'FREE' : `${t}×`}
@@ -757,74 +762,86 @@ export default function HomePage() {
             </div>
           </motion.div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
             {data.slips.map((slip: any, i: number) => (
               <motion.div
                 key={slip.id}
                 variants={fadeUp}
                 custom={i}
-                className="card-hover flex flex-col overflow-hidden"
+                className="card-hover flex flex-col overflow-hidden border-2 border-primary/5 hover:border-primary/20 bg-card/50 backdrop-blur-xl"
               >
                 {/* Card header */}
-                <div className="p-6 border-b border-border">
-                  <div className="flex items-start justify-between mb-4">
+                <div className="p-6 sm:p-8 bg-gradient-to-br from-primary/5 via-transparent to-transparent">
+                  <div className="flex items-start justify-between mb-6">
                     <div>
-                      <p className="section-label mb-1 uppercase tracking-widest text-[10px]">
-                        {slip.targetOdds <= 1.1 ? 'Free Bet' : `Target ${slip.targetOdds}×`}
+                      <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-2">
+                        {slip.targetOdds <= 1.1 ? 'Risk-Free Prediction' : `Target Multiplier: ${slip.targetOdds}×`}
                       </p>
-                      <p className="font-display text-3xl font-black text-foreground">
+                      <h3 className="font-display text-4xl sm:text-5xl font-black text-foreground leading-none">
                         {slip.totalOdds}
-                        <span className="text-lg text-muted-foreground font-medium ml-1">odds</span>
-                      </p>
+                        <span className="text-lg text-muted-foreground font-medium ml-2 uppercase tracking-widest">Odds</span>
+                      </h3>
                     </div>
-                    <span className="badge badge-purple">{slip.confidence}% conf.</span>
+                    <div className="flex flex-col items-end gap-2">
+                      <div className="badge badge-purple px-3 py-1.5 text-[10px] font-black shadow-sm">
+                        {slip.confidence}% CONF
+                      </div>
+                      <div className="badge badge-green px-3 py-1 text-[9px] font-black">STABLE</div>
+                    </div>
                   </div>
 
                   {/* Confidence bar */}
-                  <div className="progress-bar">
+                  <div className="h-2 w-full bg-secondary rounded-full overflow-hidden border border-border/50">
                     <motion.div
-                      className="progress-fill"
+                      className="h-full bg-gradient-to-r from-primary via-violet-500 to-cyan-400"
                       initial={{ width: 0 }}
                       animate={{ width: `${slip.confidence}%` }}
-                      transition={{ duration: 1, ease: 'easeOut', delay: i * 0.15 }}
+                      transition={{ duration: 1.5, ease: 'circOut', delay: i * 0.2 }}
                     />
                   </div>
                 </div>
 
                 {/* Matches */}
-                <div className="flex-1 divide-y divide-border">
+                <div className="flex-1 divide-y divide-border/30 bg-background/20">
                   {slip.matches.map((m: any, idx: number) => (
-                    <div key={idx} className="p-5 hover:bg-secondary/50 transition-colors">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="badge badge-purple text-[10px] uppercase tracking-tighter">{m.prediction}</span>
-                        <span className="font-display font-bold text-foreground text-sm">{m.odds}×</span>
+                    <div key={idx} className="p-5 sm:p-6 hover:bg-secondary/30 transition-colors group/match">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="badge badge-purple text-[9px] font-black uppercase tracking-widest px-3 py-1 bg-primary/10 border-primary/20 group-hover/match:bg-primary/20 transition-colors">
+                          {m.prediction}
+                        </span>
+                        <div className="flex items-center gap-2">
+                           <span className="font-mono font-black text-foreground text-xs">{m.odds}×</span>
+                           <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                        </div>
                       </div>
-                      <p className="font-semibold text-foreground text-sm mb-1">{m.match}</p>
-                      <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{m.reasoning}</p>
+                      <p className="font-black text-foreground text-sm sm:text-base mb-2 group-hover/match:text-primary transition-colors">{m.match}</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed font-medium line-clamp-2 italic">
+                         "{m.reasoning}"
+                      </p>
                     </div>
                   ))}
                 </div>
 
                 {/* Card footer */}
-                <div className="p-4 bg-secondary/30">
-                  <div className="flex gap-2">
-                    <button className="btn-secondary flex-1 justify-center text-xs font-bold uppercase tracking-widest">
-                      Full Analysis <ArrowRight size={14} />
+                <div className="p-4 sm:p-6 bg-secondary/30 border-t border-border">
+                  <div className="flex gap-3">
+                    <button className="btn-secondary flex-1 justify-center text-[10px] font-black uppercase tracking-widest h-11 border-2">
+                      Full Intelligence <ArrowRight size={14} className="ml-2" />
                     </button>
                     <button
                       onClick={() => pushToNeuralBets(slip.id)}
                       disabled={pushing[slip.id]}
-                      className="btn-primary w-12 px-0 justify-center"
+                      className="btn-primary w-14 h-11 px-0 justify-center shadow-lg shadow-primary/20 border-2 border-primary/10"
                       title="Push to Neural-Bets"
                     >
-                      {pushing[slip.id] ? <Loader2 size={14} className="animate-spin" /> : <Share2 size={14} />}
+                      {pushing[slip.id] ? <Loader2 size={16} className="animate-spin" /> : <Share2 size={16} />}
                     </button>
                     <button
                       onClick={() => deleteIndividualSlip(slip.id)}
-                      className="btn-secondary w-12 px-0 justify-center text-muted-foreground hover:text-destructive hover:border-destructive/30"
+                      className="btn-secondary w-14 h-11 px-0 justify-center text-muted-foreground hover:text-destructive hover:border-destructive/30 border-2"
                       title="Delete Slip"
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 </div>
@@ -861,10 +878,11 @@ export default function HomePage() {
         </div>
 
         {slipHistory.length === 0 ? (
-          <div className="card-base p-16 text-center text-muted-foreground text-sm border-dashed border-2">
+          <div className="card-base p-12 sm:p-16 text-center text-muted-foreground text-sm border-dashed border-2">
             <div className="flex flex-col items-center gap-3">
               <Database size={32} className="opacity-20" />
-              <p>No historical generations found. New slips will be archived here.</p>
+              <p className="font-bold">No historical generations found.</p>
+              <p className="text-xs">New slips will be archived here automatically.</p>
             </div>
           </div>
         ) : (
@@ -872,27 +890,35 @@ export default function HomePage() {
               {slipHistory.map((entry) => (
                 <div key={entry.id} className="card-base overflow-hidden group hover:border-primary/30 transition-all">
                   <div 
-                    className="px-6 py-4 border-b border-border flex items-center justify-between bg-secondary/30 cursor-pointer hover:bg-secondary/50 transition-colors"
+                    className="px-4 sm:px-6 py-4 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-secondary/30 cursor-pointer hover:bg-secondary/50 transition-colors"
                     onClick={() => setExpandedSessionId(expandedSessionId === entry.id ? null : entry.id)}
                   >
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3 sm:gap-4">
                       <div className={`p-1.5 rounded-lg bg-primary/10 text-primary transition-transform ${expandedSessionId === entry.id ? 'rotate-90' : ''}`}>
                         <ChevronRight size={16} />
                       </div>
-                      <span className="badge badge-purple text-[10px] font-black uppercase tracking-widest">{entry.provider}</span>
-                      <span className="text-xs text-muted-foreground font-medium">
-                        {new Date(entry.timestamp).toLocaleString()} · Targets: {entry.targets.join('×, ')}×
-                      </span>
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                        <span className="badge badge-purple text-[10px] font-black uppercase tracking-widest whitespace-nowrap w-fit">{entry.provider}</span>
+                        <div className="flex flex-col">
+                          <span className="text-[11px] sm:text-xs text-foreground font-bold leading-tight">
+                            {new Date(entry.timestamp).toLocaleDateString()} · {new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground font-medium">
+                            Targets: {entry.targets.join('×, ')}×
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <div className="badge badge-purple px-2 py-0.5 text-[10px]">
-                        {entry.slips.length} Slips
+                    <div className="flex items-center justify-between sm:justify-end gap-4">
+                      <div className="badge badge-purple px-3 py-1 text-[10px] font-black">
+                        {entry.slips.length} SLIPS
                       </div>
                       <button
                         onClick={(e) => { e.stopPropagation(); deleteFromHistory(entry.id); }}
-                        className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        title="Delete Session"
                       >
-                        <X size={16} />
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   </div>
@@ -905,90 +931,113 @@ export default function HomePage() {
                         exit={{ height: 0, opacity: 0 }}
                         className="overflow-hidden"
                       >
-                        <div className="divide-y divide-border">
+                        <div className="divide-y divide-border bg-background/40">
                           {entry.slips.map((slip: any, si: number) => (
-                            <div key={si} className="p-6 space-y-4 hover:bg-secondary/20 transition-colors">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-4">
-                                  <span className="text-[10px] font-black text-muted-foreground w-20 shrink-0 uppercase tracking-widest">
-                                    {slip.targetOdds <= 1.1 ? 'Free Bet' : `Target ${slip.targetOdds}×`}
-                                  </span>
-                                  <span className="font-display font-black text-foreground text-xl">{slip.totalOdds}×</span>
-                                  <span className="badge badge-purple text-[10px] font-bold">{slip.confidence}% conf.</span>
-                                  {slip.category && <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${slip.category === 'FREE' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-primary/10 text-primary border-primary/20'}`}>{slip.category}</span>}
+                            <div key={si} className="p-4 sm:p-6 space-y-6 hover:bg-secondary/20 transition-colors">
+                              {/* Slip Stats Header */}
+                              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div className="flex flex-wrap items-center gap-3">
+                                  <div className="flex flex-col">
+                                    <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em]">
+                                      {slip.targetOdds <= 1.1 ? 'Free Bet' : `Target ${slip.targetOdds}×`}
+                                    </span>
+                                    <span className="font-display font-black text-foreground text-2xl sm:text-3xl leading-none">{slip.totalOdds}<span className="text-sm font-medium ml-1 text-muted-foreground">odds</span></span>
+                                  </div>
+                                  <div className="h-8 w-px bg-border mx-2 hidden sm:block" />
+                                  <div className="flex items-center gap-2">
+                                    <span className="badge badge-purple px-3 py-1 text-[10px] font-black uppercase tracking-tighter">{slip.confidence}% CONFIDENCE</span>
+                                    {slip.category && (
+                                      <span className={`text-[10px] font-black px-2 py-1 rounded-lg border uppercase tracking-widest ${
+                                        slip.category === 'FREE' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-primary/10 text-primary border-primary/20'
+                                      }`}>
+                                        {slip.category}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
+
                                 <div className="flex items-center gap-2">
                                   <button
                                     onClick={() => pushToNeuralBets(slip.id)}
                                     disabled={pushing[slip.id]}
-                                    className={`p-1.5 rounded-lg transition-all border ${
-                                      pushing[slip.id] ? 'bg-primary/5 text-primary border-primary/20' : 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20'
-                                    }`}
+                                    className="btn-primary py-2 px-4 text-[10px] h-9 gap-2 shadow-none border border-primary/20"
                                     title="Push to Neural-Bets"
                                   >
                                     {pushing[slip.id] ? <Loader2 size={12} className="animate-spin" /> : <Share2 size={12} />}
+                                    <span className="hidden sm:inline">PUSH</span>
                                   </button>
 
-                                  <button
-                                    onClick={() => updateSlipStatus(slip.id, 'WIN')}
-                                    className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all border ${
-                                      slip.status === 'WIN' ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20'
-                                    }`}
-                                  >
-                                    WIN
-                                  </button>
-                                  <button
-                                    onClick={() => updateSlipStatus(slip.id, 'LOSS')}
-                                    className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all border ${
-                                      slip.status === 'LOSS' ? 'bg-destructive text-white border-destructive' : 'bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/20'
-                                    }`}
-                                  >
+                                  <div className="flex bg-secondary/50 p-1 rounded-xl border border-border">
+                                    <button
+                                      onClick={() => updateSlipStatus(slip.id, 'WIN')}
+                                      className={`px-4 py-1.5 rounded-lg text-[10px] font-black transition-all ${
+                                        slip.status === 'WIN' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'text-emerald-500 hover:bg-emerald-500/10'
+                                      }`}
+                                    >
+                                      WIN
+                                    </button>
+                                    <button
+                                      onClick={() => updateSlipStatus(slip.id, 'LOSS')}
+                                      className={`px-4 py-1.5 rounded-lg text-[10px] font-black transition-all ${
+                                        slip.status === 'LOSS' ? 'bg-destructive text-white shadow-lg shadow-destructive/20' : 'text-destructive hover:bg-destructive/10'
+                                      }`}
+                                    >
+                                      LOSS
                                     </button>
                                   </div>
+
                                   <button
                                     onClick={() => deleteIndividualSlip(slip.id)}
-                                    className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                    className="p-2 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors border border-transparent hover:border-destructive/20"
                                     title="Delete Slip"
                                   >
-                                    <Trash2 size={12} />
+                                    <Trash2 size={14} />
                                   </button>
                                 </div>
                               </div>
 
-                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                              {/* Matches Grid */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                 {slip.matches?.map((m: any, mi: number) => (
-                                  <div key={mi} className={`p-3 rounded-xl border transition-all ${
-                                    m.status === 'WIN' ? 'bg-emerald-500/5 border-emerald-500/30' :
-                                    m.status === 'LOSS' ? 'bg-destructive/5 border-destructive/30' :
-                                    'bg-background/50 border-border/50'
+                                  <div key={mi} className={`relative p-4 rounded-2xl border-2 transition-all duration-300 group/match ${
+                                    m.status === 'WIN' ? 'bg-emerald-500/[0.03] border-emerald-500/20 shadow-lg shadow-emerald-500/5' :
+                                    m.status === 'LOSS' ? 'bg-destructive/[0.03] border-destructive/20 shadow-lg shadow-destructive/5' :
+                                    'bg-background/40 border-border/50 hover:border-primary/20 hover:bg-secondary/20'
                                   }`}>
-                                    <div className="flex items-center justify-between mb-2">
-                                      <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${
+                                    <div className="flex items-center justify-between mb-3">
+                                      <span className={`text-[9px] font-black uppercase tracking-[0.15em] px-2 py-1 rounded-lg ${
                                         m.status === 'WIN' ? 'bg-emerald-500/20 text-emerald-500' :
                                         m.status === 'LOSS' ? 'bg-destructive/20 text-destructive' :
                                         'bg-primary/10 text-primary'
                                       }`}>
                                         {m.prediction}
                                       </span>
-                                      <div className="flex items-center gap-1">
+                                      <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover/match:opacity-100 transition-opacity">
                                         <button 
                                           onClick={() => updateSlipStatus(slip.id, 'WIN', mi)}
-                                          className={`p-1 rounded transition-colors ${m.status === 'WIN' ? 'text-emerald-500 bg-emerald-500/10' : 'text-muted-foreground hover:text-emerald-500'}`}
+                                          className={`p-1.5 rounded-lg transition-all ${m.status === 'WIN' ? 'text-emerald-500 bg-emerald-500/20' : 'text-muted-foreground hover:text-emerald-500 hover:bg-emerald-500/10'}`}
                                         >
-                                          <Check size={10} />
+                                          <Check size={12} />
                                         </button>
                                         <button 
                                           onClick={() => updateSlipStatus(slip.id, 'LOSS', mi)}
-                                          className={`p-1 rounded transition-colors ${m.status === 'LOSS' ? 'text-destructive bg-destructive/10' : 'text-muted-foreground hover:text-destructive'}`}
+                                          className={`p-1.5 rounded-lg transition-all ${m.status === 'LOSS' ? 'text-destructive bg-destructive/20' : 'text-muted-foreground hover:text-destructive hover:bg-destructive/10'}`}
                                         >
-                                          <X size={10} />
+                                          <X size={12} />
                                         </button>
                                       </div>
                                     </div>
-                                    <p className="text-[11px] font-bold text-foreground truncate">{m.match}</p>
-                                    <div className="flex items-center justify-between mt-1">
-                                      <p className="text-[9px] text-muted-foreground font-mono">{m.odds}×</p>
-                                      {m.status && <span className="text-[8px] font-black text-muted-foreground italic">{m.status}</span>}
+                                    
+                                    <p className="text-sm font-bold text-foreground mb-2 leading-tight">{m.match}</p>
+                                    
+                                    <div className="flex items-center justify-between mt-auto">
+                                      <p className="text-[10px] text-muted-foreground font-black font-mono tracking-tighter bg-secondary/50 px-2 py-0.5 rounded">{m.odds}× ODDS</p>
+                                      {m.status && (
+                                        <div className={`flex items-center gap-1 text-[9px] font-black uppercase tracking-widest ${m.status === 'WIN' ? 'text-emerald-500' : 'text-destructive'}`}>
+                                          {m.status === 'WIN' ? <CheckCircle2 size={10} /> : <AlertCircle size={10} />}
+                                          {m.status}
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
                                 ))}
