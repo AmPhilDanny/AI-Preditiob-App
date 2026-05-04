@@ -331,7 +331,7 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-12 py-10 pb-24 space-y-12 md:space-y-20">
+    <div className="max-w-7xl mx-auto px-3 sm:px-8 lg:px-12 py-10 pb-24 space-y-12 md:space-y-20 overflow-hidden">
       {/* ── Notification Banner ────────────────────────────── */}
       <AnimatePresence>
         {notification && (
@@ -373,13 +373,13 @@ export default function HomePage() {
 
           <motion.h1
             variants={fadeUp}
-            className="font-display text-5xl sm:text-6xl lg:text-8xl font-black tracking-tight text-foreground leading-[1] mb-6"
+            className="font-display text-4xl sm:text-6xl lg:text-8xl font-black tracking-tight text-foreground leading-[0.95] mb-6"
           >
             Multi-Agent <br />
             <span className="gradient-text">Neural Consensus</span>
           </motion.h1>
 
-          <motion.p variants={fadeUp} className="text-muted-foreground text-xl md:text-2xl font-semibold leading-relaxed max-w-xl">
+          <motion.p variants={fadeUp} className="text-muted-foreground text-lg sm:text-xl md:text-2xl font-bold leading-relaxed max-w-xl">
             Communicate with your AI agents, analyze deep market trends, and generate winning slips with absolute precision.
           </motion.p>
 
@@ -494,7 +494,7 @@ export default function HomePage() {
 
       {/* ── Agent Process Displays ─────────────────────────── */}
       <motion.section 
-        className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-12"
+        className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-12"
         variants={stagger}
         initial="hidden"
         animate="show"
@@ -623,7 +623,7 @@ export default function HomePage() {
 
       {/* ── Stats Overview ──────────────────────────────────── */}
       <motion.section 
-        className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-12"
+        className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 mb-12"
         variants={stagger}
         initial="hidden"
         animate="show"

@@ -70,13 +70,13 @@ export default function TicketValidator() {
   };
 
   return (
-    <div className="card-base p-6 sm:p-8 md:p-12 space-y-10 bg-secondary/20 border-primary/20">
+    <div className="card-base p-4 sm:p-8 md:p-12 space-y-8 sm:space-y-10 bg-secondary/20 border-primary/20">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div className="space-y-2">
-          <h2 className="font-display text-3xl md:text-5xl font-black text-foreground flex items-center gap-4 uppercase tracking-tight">
-            <ShieldCheck className="text-emerald-500 w-8 h-8 md:w-12 md:h-12" /> Ticket Validator
+          <h2 className="font-display text-2xl sm:text-3xl md:text-5xl font-black text-foreground flex items-center gap-3 sm:gap-4 uppercase tracking-tight">
+            <ShieldCheck className="text-emerald-500 w-7 h-7 sm:w-12 sm:h-12" /> Ticket Validator
           </h2>
-          <p className="text-base md:text-xl text-muted-foreground font-semibold max-w-2xl">
+          <p className="text-sm sm:text-base md:text-xl text-muted-foreground font-bold max-w-2xl">
             Upload your bookmaker ticket for AI statistical validation and RAG analysis.
           </p>
         </div>

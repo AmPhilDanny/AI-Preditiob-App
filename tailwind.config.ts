@@ -13,6 +13,9 @@ const config: Config = {
         sans:    ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
         display: ["Outfit", "ui-sans-serif", "sans-serif"],
       },
+      screens: {
+        xs: "380px",
+      },
       colors: {
         border:     "hsl(var(--border) / <alpha-value>)",
         input:      "hsl(var(--input) / <alpha-value>)",
