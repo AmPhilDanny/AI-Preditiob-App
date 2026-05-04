@@ -23,7 +23,7 @@ export interface PredictionResult {
 // ──────────────────────────────────────────────────────────────────────────────
 // Provider helpers
 // ──────────────────────────────────────────────────────────────────────────────
-async function callGemini(apiKey: string, model: string, parts: string[]): Promise<string> {
+async function callGemini(apiKey: string, model: string, parts: any[]): Promise<string> {
   const genAI = new GoogleGenerativeAI(apiKey);
   const geminiModel = genAI.getGenerativeModel({ model });
   const result = await geminiModel.generateContent(parts);
@@ -42,7 +42,18 @@ async function callMistral(apiKey: string, model: string, systemPrompt: string, 
   return response.choices?.[0]?.message?.content as string || '';
 }
 
-async function callOpenRouter(apiKey: string, model: string, systemPrompt: string, userContent: string): Promise<string> {
+async function callOpenRouter(apiKey: string, model: string, systemPrompt: string, userContent: string, imageData?: { base64: string; mimeType: string }): Promise<string> {
+  
+  let contentArray: any[] = [{ type: "text", text: userContent }];
+  if (imageData) {
+    contentArray.push({
+      type: "image_url",
+      image_url: {
+        url: `data:${imageData.mimeType};base64,${imageData.base64}`
+      }
+    });
+  }
+
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -55,7 +66,7 @@ async function callOpenRouter(apiKey: string, model: string, systemPrompt: strin
       model: model || 'google/gemini-2.0-flash-001',
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: userContent }
+        { role: 'user', content: contentArray }
       ]
     })
   });
@@ -76,16 +87,30 @@ async function callProvider(
   apiKey: string,
   model: string,
   systemPrompt: string,
-  userContent: string
+  userContent: string,
+  imageData?: { base64: string; mimeType: string }
 ): Promise<string> {
   if (provider === 'gemini') {
-    return callGemini(apiKey, model || 'gemini-1.5-flash', [systemPrompt, userContent]);
+    const parts: any[] = [systemPrompt, userContent];
+    if (imageData) {
+      parts.push({
+        inlineData: {
+          data: imageData.base64,
+          mimeType: imageData.mimeType
+        }
+      });
+    }
+    return callGemini(apiKey, model || 'gemini-1.5-flash', parts);
   }
   if (provider === 'mistral') {
+    // Note: If using Pixtral, mistral might support image_url similarly. We'll pass text only for basic mistral models or throw.
+    if (imageData && (!model || !model.includes('pixtral'))) {
+      console.warn('Mistral non-pixtral models do not support images. Ignoring image.');
+    }
     return callMistral(apiKey, model || 'mistral-large-latest', systemPrompt, userContent);
   }
   if (provider === 'openrouter') {
-    return callOpenRouter(apiKey, model || 'google/gemini-2.0-flash-001', systemPrompt, userContent);
+    return callOpenRouter(apiKey, model || 'google/gemini-2.0-flash-001', systemPrompt, userContent, imageData);
   }
   throw new Error(`Provider '${provider}' not implemented`);
 }
@@ -98,7 +123,7 @@ export class AIFactory {
   }
 
   // ── Unified call with multi-provider fallback chain ───────────────────────
-  private async callWithFallback(systemPrompt: string, userContent: string): Promise<{ text: string; usedFallback: boolean }> {
+  private async callWithFallback(systemPrompt: string, userContent: string, imageData?: { base64: string; mimeType: string }): Promise<{ text: string; usedFallback: boolean }> {
     // 1. Try the primary provider first
     try {
       const text = await callProvider(
@@ -106,7 +131,8 @@ export class AIFactory {
         this.config.apiKey,
         this.config.model,
         systemPrompt,
-        userContent
+        userContent,
+        imageData
       );
       return { text, usedFallback: false };
     } catch (primaryErr: any) {
@@ -128,7 +154,8 @@ export class AIFactory {
             fallback.apiKey,
             fallback.model,
             systemPrompt,
-            userContent
+            userContent,
+            imageData
           );
           console.log(`[AI] Successfully recovered using fallback: ${fallback.provider}`);
           return { text, usedFallback: true };
@@ -265,6 +292,21 @@ RETURN a JSON array only:
       return JSON.parse(text.replace(/```json|```/g, '').trim());
     } catch {
       return [];
+    }
+  }
+
+  // ── Multimodal specific method for extracting data and validating from image ─────────
+  async analyzeImage(
+    base64Data: string,
+    mimeType: string,
+    systemPrompt: string,
+    userPrompt: string
+  ): Promise<string> {
+    try {
+      const { text } = await this.callWithFallback(systemPrompt, userPrompt, { base64: base64Data, mimeType });
+      return text;
+    } catch (err: any) {
+      throw new Error(`Multimodal analysis failed: ${err.message}`);
     }
   }
 }

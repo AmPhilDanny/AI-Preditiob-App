@@ -12,6 +12,7 @@ import {
   Sparkles, Check, Database, Terminal, History, Trash2, X, Share2
 } from 'lucide-react';
 
+import TicketValidator from '@/components/TicketValidator';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -597,6 +598,16 @@ export default function HomePage() {
             </motion.div>
           );
         })}
+      </motion.section>
+
+      {/* ── Ticket Validator ────────────────────────────────── */}
+      <motion.section 
+        className="mb-12"
+        variants={fadeUp}
+        initial="hidden"
+        animate="show"
+      >
+        <TicketValidator />
       </motion.section>
 
       {/* ── Stats Overview ──────────────────────────────────── */}
