@@ -9,7 +9,8 @@ import {
   RefreshCcw, Zap, Brain, Target, Activity, Shield,
   AlertTriangle, ArrowRight, ChevronRight, TrendingUp,
   Globe, CheckCircle, Play, Loader2, Send, MessageSquare,
-  Sparkles, Check, Database, Terminal, History, Trash2, X, Share2
+  Sparkles, Check, Database, Terminal, History, Trash2, X, Share2,
+  CheckCircle2, AlertCircle
 } from 'lucide-react';
 
 import TicketValidator from '@/components/TicketValidator';
