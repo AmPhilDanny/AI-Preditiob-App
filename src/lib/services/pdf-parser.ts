@@ -1,5 +1,3 @@
-// @ts-ignore
-const pdf = require('pdf-parse');
 import { AIFactory, AIConfig, AIProvider } from '../ai/provider';
 import { configService } from './config';
 
@@ -84,6 +82,10 @@ export class PDFParserService {
     await this.initAI();
     
     try {
+      console.log('[PDF-PARSER] Dynamically importing pdf-parse...');
+      // Dynamic import to avoid build-time issues with legacy CJS modules
+      const pdf = require('pdf-parse');
+      
       console.log('[PDF-PARSER] Extracting text from buffer...');
       const data = await pdf(buffer);
       const rawText = data.text;

@@ -254,7 +254,12 @@ export default function AdminPage() {
 
   const loadReports = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/reports');
+      const res = await fetch('/api/admin/ingest/reports');
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error('Non-JSON response from reports API');
+        return;
+      }
       const data = await res.json();
       if (data.success) setReports(data.reports);
     } catch (e) {
@@ -278,10 +283,18 @@ export default function AdminPage() {
     formData.append('sourceName', 'Admin PDF Upload');
 
     try {
-      const res = await fetch('/api/admin/import/pdf', {
+      const res = await fetch('/api/admin/ingest/pdf', {
         method: 'POST',
         body: formData
       });
+
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await res.text();
+        console.error('Non-JSON response:', text.substring(0, 500));
+        throw new Error(`Server error (${res.status}). The deployment might still be in progress or the file is too large.`);
+      }
+
       const data = await res.json();
       if (data.success) {
         showNotification(`Successfully imported ${data.count} matches!`, 'success');
