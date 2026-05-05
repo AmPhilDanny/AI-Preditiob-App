@@ -623,7 +623,7 @@ export default function AdminPage() {
                       <h3 className="font-semibold text-sm text-foreground">Neural AI Gateways</h3>
                     </div>
                     <div className="divide-y divide-border">
-                      {config?.aiProviders && Object.entries(config.aiProviders).map(([id, p]: [string, any]) => (
+                      {config?.aiProviders && Object.entries(config.aiProviders).filter(([id]) => id !== 'serper').map(([id, p]: [string, any]) => (
                         <div key={id} className="px-6 py-4 flex items-center justify-between gap-4">
                           <div className="flex items-center gap-3 min-w-0">
                             <Zap size={18} className="text-muted-foreground shrink-0" />
@@ -1620,7 +1620,7 @@ export default function AdminPage() {
                       </h3>
                     </div>
                     <div className="p-6 space-y-6">
-                      {['gemini', 'mistral', 'openrouter', 'grok'].map(id => (
+                      {['gemini', 'mistral', 'openrouter', 'grok', 'serper'].map(id => (
                         <div key={id} className="space-y-2">
                           <div className="flex items-center justify-between">
                             <label className="section-label capitalize">{id === 'openrouter' ? 'OpenRouter' : id} Access Key</label>

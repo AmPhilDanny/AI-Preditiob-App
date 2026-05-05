@@ -8,6 +8,7 @@ import { FootballApiService, NormalizedFixture } from "../services/football-api.
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { AIFactory, AIConfig } from "../ai/provider";
+import { SerperService } from "../services/serper";
 
 export interface MatchData {
   id?: string;
@@ -149,6 +150,47 @@ export class ScraperAgent {
     }
   }
 
+  async fetchDynamicWeb(): Promise<MatchData[]> {
+    const config = await configService.getConfig();
+    if (!config.aiProviders.serper?.enabled || !config.aiProviders.serper?.apiKey) {
+      console.warn('[SCRAPER] Dynamic Web Search is disabled or missing API Key.');
+      return [];
+    }
+
+    const serper = new SerperService(config.aiProviders.serper.apiKey);
+    const today = new Date().toISOString().split('T')[0];
+    const queries = [
+      `today football match odds and predictions ${today}`,
+      `betting tips for football matches today ${today}`,
+      "top football betting sites with today matches odds"
+    ];
+
+    console.log(`[SCRAPER] Starting Dynamic Web Search with ${queries.length} queries...`);
+    const allMatches: MatchData[] = [];
+    const visitedUrls = new Set<string>();
+
+    for (const query of queries) {
+      const results = await serper.search(query);
+      console.log(`[SCRAPER] Serper found ${results.length} links for query: "${query}"`);
+
+      // Process top 3 new links per query to avoid excessive API calls
+      const newLinks = results.filter(r => !visitedUrls.has(r.link)).slice(0, 3);
+      for (const result of newLinks) {
+        visitedUrls.add(result.link);
+        try {
+          const webMatches = await this.fetchTargetedWeb(result.link);
+          allMatches.push(...webMatches);
+          // Wait between requests to be polite
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        } catch (e) {
+          console.error(`[SCRAPER] Failed to scrape dynamic link: ${result.link}`);
+        }
+      }
+    }
+
+    return allMatches;
+  }
+
   private processApiData(fixtures: NormalizedFixture[], name: string): MatchData[] {
     return fixtures.map(f => {
       const raw = f.rawData || {};
@@ -207,7 +249,7 @@ export class ScraperAgent {
       }
     }
 
-    // 2. Crawl all configured websites sequentially
+    // 2. Crawl all configured static websites sequentially
     const config = await configService.getConfig();
     const urls = config.scrapingUrls || [];
     for (const url of urls) {
@@ -217,6 +259,14 @@ export class ScraperAgent {
       } catch (e) {
         console.error(`[SCRAPER] Skip ${url} due to error`);
       }
+    }
+
+    // 3. Perform Dynamic Web Search if enabled
+    try {
+      const dynamicMatches = await this.fetchDynamicWeb();
+      allFixtures.push(...dynamicMatches);
+    } catch (e) {
+      console.error('[SCRAPER] Dynamic Web Search failed:', e);
     }
 
     // Fallback data if everything fails

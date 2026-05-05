@@ -20,26 +20,28 @@ export class ValidatorAgent {
 
     // Step 0: Verification Check
     const verificationPrompt = `
-      Analyze the provided image. Is this a sports betting ticket, betting slip, or bookmaker coupon?
-      Check for:
-      1. Lists of sports matches or events.
-      2. Betting odds (e.g., 1.50, 2/1).
-      3. Markets like "Over 2.5", "BTTS", "1X2".
-      4. Bookmaker branding.
-      
-      Respond with ONLY "YES" or "NO".
+      Analyze the provided image. Does this image look like a sports betting ticket, betting slip, or bookmaker coupon? 
+      Look for:
+      - Team names (e.g., Arsenal, Man City)
+      - Betting odds (e.g., 1.50, 2.10)
+      - Markets (e.g., "Over 2.5", "BTTS", "1X2")
+      - Bookmaker logos or layout.
+
+      IMPORTANT: If it even remotely looks like a ticket, respond with "YES". 
+      Respond with "YES" or "NO" and a very brief reason.
     `;
 
-    let isTicket = "NO";
+    let verificationResult = "NO";
     try {
-      isTicket = await ai.analyzeImage(base64Image, mimeType, "You are a visual classifier.", verificationPrompt);
-      console.log("Ticket Verification Result:", isTicket);
+      verificationResult = await ai.analyzeImage(base64Image, mimeType, "You are a visual classifier.", verificationPrompt);
+      console.log("[VALIDATOR] Verification Result:", verificationResult);
     } catch (e: any) {
-      console.error("Verification step failed:", e.message);
-      // Fallback to extraction if verification fails but don't block
+      console.error("[VALIDATOR] Verification step failed:", e.message);
+      // Fallback to YES to avoid blocking valid tickets on API errors
+      verificationResult = "YES - API Error Fallback";
     }
 
-    if (!isTicket.trim().toUpperCase().includes("YES")) {
+    if (!verificationResult.trim().toUpperCase().includes("YES")) {
       return { 
         success: false, 
         error: "The uploaded image is not recognized as a sports betting ticket. Please upload a clear image of your betting slip." 

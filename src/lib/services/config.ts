@@ -14,6 +14,7 @@ export interface SystemConfig {
     grok: { apiKey: string; enabled: boolean };
     mistral: { apiKey: string; enabled: boolean; model: string };
     openrouter: { apiKey: string; enabled: boolean; model: string };
+    serper: { apiKey: string; enabled: boolean };
   };
   aiAnalysisEnabled: boolean;
   predictionThreshold: number;
@@ -78,6 +79,8 @@ class ConfigService {
             openrouterApiKey: defaults.aiProviders.openrouter.apiKey,
             openrouterEnabled: defaults.aiProviders.openrouter.enabled,
             openrouterModel: defaults.aiProviders.openrouter.model,
+            serperApiKey: defaults.aiProviders.serper.apiKey,
+            serperEnabled: defaults.aiProviders.serper.enabled,
             aiAnalysisEnabled: defaults.aiAnalysisEnabled,
             predictionThreshold: defaults.predictionThreshold,
             analystPrompt: defaults.agentPrompts.analyst,
@@ -114,6 +117,10 @@ class ConfigService {
             apiKey: (config as any).openrouterApiKey || '',
             enabled: (config as any).openrouterEnabled ?? false,
             model: (config as any).openrouterModel || 'google/gemini-2.0-flash-001'
+          },
+          serper: {
+            apiKey: (config as any).serperApiKey || '',
+            enabled: (config as any).serperEnabled ?? false,
           }
         },
         aiAnalysisEnabled: config.aiAnalysisEnabled,
@@ -152,6 +159,7 @@ class ConfigService {
         grok:    { ...current.aiProviders.grok,    ...updates.aiProviders?.grok },
         mistral: { ...current.aiProviders.mistral, ...updates.aiProviders?.mistral },
         openrouter: { ...current.aiProviders.openrouter, ...updates.aiProviders?.openrouter },
+        serper:     { ...current.aiProviders.serper,     ...updates.aiProviders?.serper },
       },
       agentPrompts: {
         analyst: updates.agentPrompts?.analyst ?? current.agentPrompts.analyst,
@@ -190,6 +198,8 @@ class ConfigService {
         openrouterApiKey: merged.aiProviders.openrouter.apiKey,
         openrouterEnabled: merged.aiProviders.openrouter.enabled,
         openrouterModel: merged.aiProviders.openrouter.model,
+        serperApiKey: merged.aiProviders.serper.apiKey,
+        serperEnabled: merged.aiProviders.serper.enabled,
         aiAnalysisEnabled: merged.aiAnalysisEnabled,
         predictionThreshold: merged.predictionThreshold,
         analystPrompt: merged.agentPrompts.analyst,
@@ -223,6 +233,8 @@ class ConfigService {
         openrouterApiKey: merged.aiProviders.openrouter.apiKey,
         openrouterEnabled: merged.aiProviders.openrouter.enabled,
         openrouterModel: merged.aiProviders.openrouter.model,
+        serperApiKey: merged.aiProviders.serper.apiKey,
+        serperEnabled: merged.aiProviders.serper.enabled,
         aiAnalysisEnabled: merged.aiAnalysisEnabled,
         predictionThreshold: merged.predictionThreshold,
         analystPrompt: merged.agentPrompts.analyst,
@@ -250,6 +262,7 @@ class ConfigService {
         grok: { apiKey: '', enabled: false },
         mistral: { apiKey: '', enabled: false, model: 'mistral-large-latest' },
         openrouter: { apiKey: '', enabled: false, model: 'google/gemini-2.0-flash-001' },
+        serper: { apiKey: '', enabled: false },
       },
       aiAnalysisEnabled: true,
       predictionThreshold: 75,
