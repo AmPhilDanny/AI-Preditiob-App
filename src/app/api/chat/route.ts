@@ -65,7 +65,8 @@ export async function POST(request: Request) {
         "3. Use bold text for team names and key predictions.\n" +
         "4. Use bullet points for reasoning.\n" +
         "5. NEVER return raw JSON or plain unformatted text.\n" +
-        "6. If the user asks for Goal-Goal (GG) or Over/Under, provide a clear structured breakdown.",
+        "6. If the user asks for Goal-Goal (GG) or Over/Under, provide a clear structured breakdown.\n" +
+        "7. DIRECT ANSWER FIRST: Always answer the user's specific question before providing any betting insights.",
       allEnabledProviders
     };
 
@@ -83,9 +84,19 @@ export async function POST(request: Request) {
       return `[${m.league}] ${m.homeTeam} vs ${m.awayTeam} | Odds: H:${(m.odds as any)?.home} D:${(m.odds as any)?.draw} A:${(m.odds as any)?.away} | BTTS:${(m.odds as any)?.btts || 'N/A'} | Over2.5:${(m.odds as any)?.over25 || 'N/A'}`;
     }).join('\n');
 
+    const now = new Date();
+    const dateContext = `Current System Date: ${now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}\n` +
+                        `Current System Time: ${now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}\n\n`;
+
     const fullMessage = context.length > 0
-      ? `DATABASE CONTEXT — Today's Matches:\n${context}\n\nUSER QUESTION: ${message}\n\nINSTRUCTIONS:\n1. Use the DATABASE CONTEXT to find relevant matches.\n2. For "GG" / "Goal-Goal" / "BTTS", identify matches with competitive odds or attacking teams.\n3. For "Over/Under 2.5", reference the over25/under25 odds where available.\n4. Be professional. List specific teams. If no matches fit, say so clearly.`
-      : `No match data in database yet.\n\nUSER QUESTION: ${message}\n\nPlease let the user know there is no match data available yet, and suggest they run the scraper from the Admin panel.`;
+      ? `${dateContext}DATABASE CONTEXT — Today's Available Matches:\n${context}\n\n` +
+        `USER QUESTION: ${message}\n\n` +
+        `INSTRUCTIONS:\n` +
+        `1. Direct Answer: First, answer the user's specific question directly. If they ask for the date, use the Current System Date provided above.\n` +
+        `2. Match Analysis: Only reference the DATABASE CONTEXT if the user is asking for betting tips, predictions, or match info.\n` +
+        `3. Intent Recognition: If the user is just chatting or asking a non-betting question, do not provide a betting slip or match list.\n` +
+        `4. If no relevant matches exist for their specific query, state that clearly.`
+      : `${dateContext}No match data in database yet.\n\nUSER QUESTION: ${message}\n\nPlease let the user know there is no match data available yet, and suggest they run the scraper from the Admin panel.`;
 
     const response = await ai.chat(fullMessage, history);
 

@@ -20,14 +20,15 @@ export class ValidatorAgent {
 
     // Step 0: Verification Check
     const verificationPrompt = `
-      Analyze the provided image. Does this image look like a sports betting ticket, betting slip, or bookmaker coupon? 
+      Analyze the provided image. Does this image look like a sports betting ticket, betting slip, bookmaker booking code, or match coupon? 
       Look for:
-      - Team names (e.g., Arsenal, Man City)
-      - Betting odds (e.g., 1.50, 2.10)
-      - Markets (e.g., "Over 2.5", "BTTS", "1X2")
-      - Bookmaker logos or layout.
+      - Team names (e.g., Arsenal, Vikingur Gota, Almeria)
+      - Betting odds (e.g., 1.50, 1.16, 1.45)
+      - Markets (e.g., "Over 1.5", "Home", "1X2")
+      - Booking codes (e.g., PNL33X)
+      - Bookmaker branding (e.g., SportyBet, Bet365).
 
-      IMPORTANT: If it even remotely looks like a ticket, respond with "YES". 
+      IMPORTANT: If it even remotely looks like a betting slip or a screenshot from a betting app, respond with "YES". 
       Respond with "YES" or "NO" and a very brief reason.
     `;
 
