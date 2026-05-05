@@ -85,8 +85,9 @@ export class PDFParserService {
       console.log('[PDF-PARSER] Polyfilling DOMMatrix for Node environment...');
       // @ts-ignore
       if (typeof global !== 'undefined' && !global.DOMMatrix) {
+        const DM = require('dommatrix');
         // @ts-ignore
-        global.DOMMatrix = require('dommatrix');
+        global.DOMMatrix = DM.DOMMatrix || DM.default || DM;
       }
 
       console.log('[PDF-PARSER] Dynamically importing pdf-parse...');
