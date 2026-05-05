@@ -197,23 +197,19 @@ Provide a structured analysis with:
       throw new Error("No matches found in the provided text.");
     }
 
-    // Step 2: Save to ScrapedData table
-    const savedRecords = [];
-    for (const m of parsed.matches) {
-      const record = await prisma.scrapedData.create({
-        data: {
-          homeTeam: m.homeTeam,
-          awayTeam: m.awayTeam,
-          league: m.league || "Unknown",
-          matchDate: m.matchDate ? new Date(m.matchDate) : null,
-          odds: m.odds || {},
-          sourceApi: "Manual Import",
-        }
-      });
-      savedRecords.push(record);
-    }
+    // Bulk insert for speed
+    const { count } = await prisma.scrapedData.createMany({
+      data: parsed.matches.map((m: any) => ({
+        homeTeam: m.homeTeam,
+        awayTeam: m.awayTeam,
+        league: m.league || "Unknown",
+        matchDate: m.matchDate ? new Date(m.matchDate) : null,
+        odds: m.odds || {},
+        sourceApi: "Manual Import",
+      }))
+    });
 
-    return this.generateImportAnalysis(parsed.matches, savedRecords.length);
+    return this.generateImportAnalysis(parsed.matches, count);
   }
 
   async importCSVData(csvText: string): Promise<any> {
@@ -340,23 +336,25 @@ Provide a structured analysis with:
       }
     }
 
-    const savedRecords = [];
-    for (const m of matches) {
-      const record = await prisma.scrapedData.create({
-        data: {
-          homeTeam: m.homeTeam,
-          awayTeam: m.awayTeam,
-          league: m.league,
-          matchDate: m.matchDate,
-          odds: m.odds as any,
-          rawStats: m.rawStats as any,
-          sourceApi: m.sourceApi,
-        }
-      });
-      savedRecords.push(record);
-    }
+    // Bulk insert for speed and to avoid timeouts
+    const { count } = await prisma.scrapedData.createMany({
+      data: matches.map(m => ({
+        homeTeam: m.homeTeam,
+        awayTeam: m.awayTeam,
+        league: m.league,
+        matchDate: m.matchDate,
+        odds: m.odds as any,
+        rawStats: m.rawStats as any,
+        sourceApi: m.sourceApi,
+      }))
+    });
 
-    return this.generateImportAnalysis(matches, savedRecords.length);
+    return {
+      success: true,
+      count: count,
+      analysis: `### ✅ Import Successful\n\nSuccessfully imported **${count}** matches from CSV into the system intelligence database. \n\n*Note: AI-powered strategic analysis was skipped to ensure maximum import speed and prevent server timeouts.*`,
+      matches: matches.slice(0, 5) // Return small sample to frontend
+    };
   }
 
   private async generateImportAnalysis(matches: any[], count: number): Promise<any> {
