@@ -1,5 +1,6 @@
-import pdf from 'pdf-parse';
-import { AIFactory, AIConfig } from '../ai/provider';
+// @ts-ignore
+import pdf from 'pdf-parse/lib/pdf-parse.js';
+import { AIFactory, AIConfig, AIProvider } from '../ai/provider';
 import { configService } from './config';
 
 export interface ExtractedMarketMatch {
@@ -30,10 +31,49 @@ export class PDFParserService {
     if (this.aiFactory) return;
     const config = await configService.getConfig();
     
+    // ── Primary provider selection ──────────────────────────────────────────
+    let provider: AIProvider = 'gemini';
+    let apiKey = '';
+    let model = 'gemini-2.0-flash';
+
+    if (config.aiProviders.gemini.enabled && config.aiProviders.gemini.apiKey) {
+      provider = 'gemini';
+      apiKey = config.aiProviders.gemini.apiKey;
+      model = config.aiProviders.gemini.model || 'gemini-2.0-flash';
+    } else if (config.aiProviders.mistral.enabled && config.aiProviders.mistral.apiKey) {
+      provider = 'mistral';
+      apiKey = config.aiProviders.mistral.apiKey;
+      model = config.aiProviders.mistral.model || 'mistral-large-latest';
+    } else if (config.aiProviders.openrouter.enabled && config.aiProviders.openrouter.apiKey) {
+      provider = 'openrouter';
+      apiKey = config.aiProviders.openrouter.apiKey;
+      model = config.aiProviders.openrouter.model || 'google/gemini-2.0-flash-001';
+    } else if (config.aiProviders.grok.enabled && config.aiProviders.grok.apiKey) {
+      provider = 'grok';
+      apiKey = config.aiProviders.grok.apiKey;
+      model = 'grok-beta';
+    }
+
+    // ── Build Full Fallback Chain ──────────────────────────────────────────
+    const allEnabledProviders: Array<{ provider: AIProvider; apiKey: string; model: string }> = [];
+    if (config.aiProviders.gemini.enabled && config.aiProviders.gemini.apiKey) {
+      allEnabledProviders.push({ provider: 'gemini', apiKey: config.aiProviders.gemini.apiKey, model: config.aiProviders.gemini.model || 'gemini-2.0-flash' });
+    }
+    if (config.aiProviders.mistral.enabled && config.aiProviders.mistral.apiKey) {
+      allEnabledProviders.push({ provider: 'mistral', apiKey: config.aiProviders.mistral.apiKey, model: config.aiProviders.mistral.model || 'mistral-large-latest' });
+    }
+    if (config.aiProviders.openrouter.enabled && config.aiProviders.openrouter.apiKey) {
+      allEnabledProviders.push({ provider: 'openrouter', apiKey: config.aiProviders.openrouter.apiKey, model: config.aiProviders.openrouter.model || 'google/gemini-2.0-flash-001' });
+    }
+    if (config.aiProviders.grok.enabled && config.aiProviders.grok.apiKey) {
+      allEnabledProviders.push({ provider: 'grok', apiKey: config.aiProviders.grok.apiKey, model: 'grok-beta' });
+    }
+
     const aiConfig: AIConfig = {
-      provider: config.aiProviders.gemini.enabled ? 'gemini' : 'openrouter',
-      apiKey: config.aiProviders.gemini.enabled ? config.aiProviders.gemini.apiKey || '' : config.aiProviders.openrouter.apiKey || '',
-      model: config.aiProviders.gemini.enabled ? 'gemini-2.0-flash' : config.aiProviders.openrouter.model || 'google/gemini-2.0-flash-001',
+      provider,
+      apiKey,
+      model,
+      allEnabledProviders,
       systemPrompt: "You are an expert data extractor specialized in bookmaker odds sheets. Your goal is to convert messy text from a PDF into highly accurate, structured JSON match data."
     };
     
