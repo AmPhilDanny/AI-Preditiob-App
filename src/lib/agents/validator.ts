@@ -18,13 +18,46 @@ export class ValidatorAgent {
     console.log("Validating uploaded bookmaker ticket...");
     const ai = new AIFactory(aiConfig);
 
+    // Step 0: Verification Check
+    const verificationPrompt = `
+      Analyze the provided image. Is this a sports betting ticket, betting slip, or bookmaker coupon?
+      Check for:
+      1. Lists of sports matches or events.
+      2. Betting odds (e.g., 1.50, 2/1).
+      3. Markets like "Over 2.5", "BTTS", "1X2".
+      4. Bookmaker branding.
+      
+      Respond with ONLY "YES" or "NO".
+    `;
+
+    let isTicket = "NO";
+    try {
+      isTicket = await ai.analyzeImage(base64Image, mimeType, "You are a visual classifier.", verificationPrompt);
+      console.log("Ticket Verification Result:", isTicket);
+    } catch (e: any) {
+      console.error("Verification step failed:", e.message);
+      // Fallback to extraction if verification fails but don't block
+    }
+
+    if (!isTicket.trim().toUpperCase().includes("YES")) {
+      return { 
+        success: false, 
+        error: "The uploaded image is not recognized as a sports betting ticket. Please upload a clear image of your betting slip." 
+      };
+    }
+
     // Step 1: Extract ticket details using Multimodal AI
     const extractionPrompt = `
       You are an expert sports betting analyst. 
       Analyze the provided image of a bookmaker ticket or betting slip.
       Extract the matches, the selected markets (e.g., Home Win, Over 2.5), and the odds for each match.
-      Return the output as a valid JSON array of objects with keys: "homeTeam", "awayTeam", "selection", and "odds".
-      Return ONLY the JSON array.
+      
+      CRITICAL RULES:
+      1. ONLY extract matches that are CLEARLY visible in the image.
+      2. DO NOT invent, assume, or hallucinate any matches.
+      3. If the image is blurry or irrelevant, return an empty array [].
+      4. Return the output as a valid JSON array of objects with keys: "homeTeam", "awayTeam", "selection", and "odds".
+      5. Return ONLY the JSON array.
     `;
     
     let extractedText = "";
