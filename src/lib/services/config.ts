@@ -258,7 +258,7 @@ class ConfigService {
         api5: { apiKey: '', enabled: false },
       },
       aiProviders: {
-        gemini: { apiKey: '', enabled: true, model: 'gemini-1.5-flash' },
+        gemini: { apiKey: '', enabled: true, model: 'gemini-2.0-flash' },
         grok: { apiKey: '', enabled: false },
         mistral: { apiKey: '', enabled: false, model: 'mistral-large-latest' },
         openrouter: { apiKey: '', enabled: false, model: 'google/gemini-2.0-flash-001' },

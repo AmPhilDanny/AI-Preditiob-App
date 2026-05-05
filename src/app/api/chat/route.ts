@@ -11,12 +11,12 @@ export async function POST(request: Request) {
     // ── Primary provider selection ──────────────────────────────────────────
     let provider: 'gemini' | 'grok' | 'mistral' | 'openrouter' = 'gemini';
     let apiKey = '';
-    let model = 'gemini-1.5-flash';
+    let model = 'gemini-2.0-flash';
 
     if (config.aiProviders.gemini.enabled && config.aiProviders.gemini.apiKey) {
       provider = 'gemini';
       apiKey = config.aiProviders.gemini.apiKey;
-      model = config.aiProviders.gemini.model || 'gemini-1.5-flash';
+      model = config.aiProviders.gemini.model || 'gemini-2.0-flash';
     } else if (config.aiProviders.mistral.enabled && config.aiProviders.mistral.apiKey) {
       provider = 'mistral';
       apiKey = config.aiProviders.mistral.apiKey;
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     // ── Build Full Fallback Chain ──────────────────────────────────────────
     const allEnabledProviders: Array<{ provider: 'gemini' | 'grok' | 'mistral' | 'openrouter'; apiKey: string; model: string }> = [];
     if (config.aiProviders.gemini.enabled && config.aiProviders.gemini.apiKey) {
-      allEnabledProviders.push({ provider: 'gemini', apiKey: config.aiProviders.gemini.apiKey, model: config.aiProviders.gemini.model || 'gemini-1.5-flash' });
+      allEnabledProviders.push({ provider: 'gemini', apiKey: config.aiProviders.gemini.apiKey, model: config.aiProviders.gemini.model || 'gemini-2.0-flash' });
     }
     if (config.aiProviders.mistral.enabled && config.aiProviders.mistral.apiKey) {
       allEnabledProviders.push({ provider: 'mistral', apiKey: config.aiProviders.mistral.apiKey, model: config.aiProviders.mistral.model || 'mistral-large-latest' });

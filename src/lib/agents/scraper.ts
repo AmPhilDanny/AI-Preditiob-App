@@ -114,7 +114,7 @@ export class ScraperAgent {
         apiKey: config.aiProviders.gemini.enabled ? config.aiProviders.gemini.apiKey : 
                 config.aiProviders.openrouter.enabled ? config.aiProviders.openrouter.apiKey : '',
         model: config.aiProviders.gemini.enabled ? config.aiProviders.gemini.model : 
-               config.aiProviders.openrouter.enabled ? config.aiProviders.openrouter.model : 'gemini-1.5-flash',
+               config.aiProviders.openrouter.enabled ? config.aiProviders.openrouter.model : 'gemini-2.0-flash',
         systemPrompt: `STRICT RULE: Only extract matches occurring TODAY (${new Date().toISOString().split('T')[0]}). Ignore any matches for future dates. \n\n${config.agentPrompts.scraper}`
       };
 
