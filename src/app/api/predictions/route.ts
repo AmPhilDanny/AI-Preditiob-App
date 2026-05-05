@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+export const maxDuration = 60; // Extend timeout to 60s for AI processing
 import { AnalystAgent } from '@/lib/agents/analyst';
 import { HealthAgent } from '@/lib/agents/health';
 import { configService } from '@/lib/services/config';

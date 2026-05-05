@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+export const maxDuration = 60; // Scraping can be slow
 import { ScraperAgent } from '@/lib/agents/scraper';
 
 export async function GET() {

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+export const maxDuration = 60; // Extend timeout for complex imports
 import { configService } from '@/lib/services/config';
 import { ProcessorAgent } from '@/lib/agents/processor';
 import { AIConfig } from '@/lib/ai/provider';
