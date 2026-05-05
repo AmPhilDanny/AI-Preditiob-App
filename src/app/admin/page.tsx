@@ -1058,18 +1058,36 @@ export default function AdminPage() {
                               <td>
                                 {d.odds ? (
                                   <div className="flex gap-1.5">
-                                    <span className="bg-secondary px-1.5 py-0.5 rounded text-[10px]" title="Home">{d.odds.home?.toFixed(2)}</span>
-                                    <span className="bg-secondary px-1.5 py-0.5 rounded text-[10px]" title="Draw">{d.odds.draw?.toFixed(2)}</span>
-                                    <span className="bg-secondary px-1.5 py-0.5 rounded text-[10px]" title="Away">{d.odds.away?.toFixed(2)}</span>
+                                    <span className="bg-secondary px-1.5 py-0.5 rounded text-[10px]" title="Home">
+                                      {typeof d.odds.home === 'number' ? d.odds.home.toFixed(2) : (d.odds.home || '0.00')}
+                                    </span>
+                                    <span className="bg-secondary px-1.5 py-0.5 rounded text-[10px]" title="Draw">
+                                      {typeof d.odds.draw === 'number' ? d.odds.draw.toFixed(2) : (d.odds.draw || '0.00')}
+                                    </span>
+                                    <span className="bg-secondary px-1.5 py-0.5 rounded text-[10px]" title="Away">
+                                      {typeof d.odds.away === 'number' ? d.odds.away.toFixed(2) : (d.odds.away || '0.00')}
+                                    </span>
                                   </div>
                                 ) : 'N/A'}
                               </td>
                               <td>
                                 {d.odds ? (
                                   <div className="flex gap-1.5">
-                                    {d.odds.btts && <span className="bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded text-[10px]" title="BTTS">B: {d.odds.btts.toFixed(2)}</span>}
-                                    {d.odds.over25 && <span className="bg-emerald-500/10 text-emerald-500 px-1.5 py-0.5 rounded text-[10px]" title="Over 2.5">O: {d.odds.over25.toFixed(2)}</span>}
-                                    {d.odds.under25 && <span className="bg-blue-500/10 text-blue-500 px-1.5 py-0.5 rounded text-[10px]" title="Under 2.5">U: {d.odds.under25.toFixed(2)}</span>}
+                                    {d.odds.btts && (
+                                      <span className="bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded text-[10px]" title="BTTS">
+                                        B: {typeof d.odds.btts === 'number' ? d.odds.btts.toFixed(2) : d.odds.btts}
+                                      </span>
+                                    )}
+                                    {d.odds.over25 && (
+                                      <span className="bg-emerald-500/10 text-emerald-500 px-1.5 py-0.5 rounded text-[10px]" title="Over 2.5">
+                                        O: {typeof d.odds.over25 === 'number' ? d.odds.over25.toFixed(2) : d.odds.over25}
+                                      </span>
+                                    )}
+                                    {d.odds.under25 && (
+                                      <span className="bg-blue-500/10 text-blue-500 px-1.5 py-0.5 rounded text-[10px]" title="Under 2.5">
+                                        U: {typeof d.odds.under25 === 'number' ? d.odds.under25.toFixed(2) : d.odds.under25}
+                                      </span>
+                                    )}
                                   </div>
                                 ) : '-'}
                               </td>

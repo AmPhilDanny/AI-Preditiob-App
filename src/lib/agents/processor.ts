@@ -315,7 +315,7 @@ Using the **System Memory** for context and the **New Match Data** for current o
           home: ftHome,
           draw: ftDraw,
           away: ftAway,
-          btts: bttsYes > 0 ? "Yes" : "No",
+          btts: bttsYes,
           over25: goalLine.includes('2.5') ? goalOver : 0
         };
 

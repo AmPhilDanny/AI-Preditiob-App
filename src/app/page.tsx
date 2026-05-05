@@ -91,23 +91,39 @@ export default function HomePage() {
   };
 
   const deleteFromHistory = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this entire generation session?')) return;
     try {
-      await fetch(`/api/history?sessionId=${id}`, { method: 'DELETE' });
-      setSlipHistory(prev => prev.filter(e => e.id !== id));
+      const res = await fetch(`/api/history?sessionId=${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setSlipHistory(prev => prev.filter(e => e.id !== id));
+        showNotification('Session deleted successfully', 'success');
+      } else {
+        throw new Error('Delete failed');
+      }
     } catch (e) {
       console.error('Failed to delete history item', e);
+      showNotification('Failed to delete session', 'error');
     }
   };
 
   const clearHistory = async () => {
+    if (!confirm('Are you sure you want to wipe the entire generation history? This cannot be undone.')) return;
     try {
-      // Archive all currently visible slips
-      for (const entry of slipHistory) {
-        await fetch(`/api/history?sessionId=${entry.id}`, { method: 'DELETE' });
+      // Mass delete via sessionIds
+      const results = await Promise.all(
+        slipHistory.map(entry => fetch(`/api/history?sessionId=${entry.id}`, { method: 'DELETE' }))
+      );
+      
+      if (results.every(r => r.ok)) {
+        setSlipHistory([]);
+        showNotification('History cleared successfully', 'success');
+      } else {
+        fetchHistory(); // Refresh to show what's left
+        showNotification('Some items could not be deleted', 'error');
       }
-      setSlipHistory([]);
     } catch (e) {
       console.error('Failed to clear history', e);
+      showNotification('An error occurred while clearing history', 'error');
     }
   };
 
