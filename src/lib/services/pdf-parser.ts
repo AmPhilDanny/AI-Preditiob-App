@@ -1,0 +1,102 @@
+import pdf from 'pdf-parse';
+import { AIFactory, AIConfig } from '../ai/provider';
+import { configService } from './config';
+
+export interface ExtractedMarketMatch {
+  homeTeam: string;
+  awayTeam: string;
+  league: string;
+  matchTime: string;
+  markets: {
+    fullTime: { home: number; draw: number; away: number; code?: string };
+    halfTime?: { home: number; draw: number; away: number; code?: string };
+    secondHalf?: { home: number; draw: number; away: number; code?: string };
+    totalGoals: {
+      over25: number;
+      under25: number;
+      over35?: number;
+      under35?: number;
+    };
+    doubleChance?: { homeDraw: number; homeAway: number; drawAway: number };
+    btts?: { yes: number; no: number };
+    codes?: Record<string, string>; // Store all the special bookmaker codes
+  };
+}
+
+export class PDFParserService {
+  private aiFactory: AIFactory | null = null;
+
+  private async initAI() {
+    if (this.aiFactory) return;
+    const config = await configService.getConfig();
+    
+    const aiConfig: AIConfig = {
+      provider: config.aiProviders.gemini.enabled ? 'gemini' : 'openrouter',
+      apiKey: config.aiProviders.gemini.enabled ? config.aiProviders.gemini.apiKey || '' : config.aiProviders.openrouter.apiKey || '',
+      model: config.aiProviders.gemini.enabled ? 'gemini-2.0-flash' : config.aiProviders.openrouter.model || 'google/gemini-2.0-flash-001',
+      systemPrompt: "You are an expert data extractor specialized in bookmaker odds sheets. Your goal is to convert messy text from a PDF into highly accurate, structured JSON match data."
+    };
+    
+    this.aiFactory = new AIFactory(aiConfig);
+  }
+
+  async parseOddsPDF(buffer: Buffer): Promise<ExtractedMarketMatch[]> {
+    await this.initAI();
+    
+    try {
+      console.log('[PDF-PARSER] Extracting text from buffer...');
+      const data = await pdf(buffer);
+      const rawText = data.text;
+      
+      console.log(`[PDF-PARSER] Extracted ${rawText.length} characters. Sending to AI for structured parsing...`);
+      
+      // We process in chunks if the text is too long, but for a single sheet 2.0 Flash context is huge.
+      const prompt = `
+        EXTRACT ALL MATCH DATA FROM THIS BOOKMAKER ODDS SHEET.
+        
+        The text contains multiple matches with odds for:
+        1. Full-Time (1X2)
+        2. Half-Time (1X2)
+        3. Second-Half (1X2)
+        4. Total Goals (Over/Under 2.5 and 3.5)
+        5. Double Chance (1X, 12, X2)
+        6. Both Teams to Score (Yes/No)
+        7. Booking codes for specific selections.
+        
+        STRICT RULES:
+        - Return ONLY a valid JSON array of objects.
+        - Each object MUST follow this structure:
+          {
+            "homeTeam": "...",
+            "awayTeam": "...",
+            "league": "...",
+            "matchTime": "YYYY-MM-DD HH:mm",
+            "markets": {
+              "fullTime": { "home": 1.5, "draw": 3.4, "away": 5.0, "code": "..." },
+              "halfTime": { "home": 2.1, "draw": 2.0, "away": 4.5 },
+              "totalGoals": { "over25": 1.8, "under25": 1.9, "over35": 2.5, "under35": 1.4 },
+              "doubleChance": { "homeDraw": 1.15, "homeAway": 1.25, "drawAway": 1.95 },
+              "btts": { "yes": 1.75, "no": 1.95 },
+              "codes": { "correctScore": "...", "htft": "..." }
+            }
+          }
+        
+        TEXT TO PARSE:
+        ${rawText.substring(0, 50000)}
+      `;
+
+      if (!this.aiFactory) throw new Error('AI Factory not initialized');
+      
+      const { text: resultText } = await this.aiFactory.chat(prompt);
+      const cleaned = resultText.replace(/```json|```/g, '').trim();
+      const parsed = JSON.parse(cleaned);
+      
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (err: any) {
+      console.error('[PDF-PARSER] Failed to parse PDF:', err.message);
+      throw err;
+    }
+  }
+}
+
+export const pdfParserService = new PDFParserService();

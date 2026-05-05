@@ -84,8 +84,18 @@ model ScrapedData {
   awayTeam    String
   league      String
   matchDate   DateTime?
-  odds        Json     // Home, draw, away odds
-  rawStats    Json?    // Raw API data
+  odds        Json     // Home, draw, away odds + extra markets
+  rawStats    Json?    // Raw API data or PDF metadata
+  createdAt   DateTime @default(now())
+}
+
+model MarketReport {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  filename    String
+  sourceName  String
+  parsedCount Int      @default(0)
+  rawSummary  String?
+  status      String   @default("COMPLETED")
   createdAt   DateTime @default(now())
 }
 

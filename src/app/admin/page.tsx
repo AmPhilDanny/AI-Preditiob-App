@@ -10,7 +10,7 @@ import {
   Cpu, Terminal, Globe, Lock, Database, Shield,
   CheckCircle, RefreshCcw, Plus, Trash2, Eye, EyeOff,
   Zap, Activity, History, Server, LogOut, AlertTriangle,
-  Loader2, Play, Check, X, Brain, Search, Share2, Pencil
+  Loader2, Play, Check, X, Brain, Search, Share2, Pencil, Upload, FileText
 } from 'lucide-react';
 
 const TABS = [
@@ -19,6 +19,7 @@ const TABS = [
   { id: 'scraping', label: 'Crawl Routes',    icon: Globe },
   { id: 'data',     label: 'Data Viewer',     icon: Database },
   { id: 'processor', label: 'Intelligence',   icon: Brain },
+  { id: 'importer',  label: 'Data Importer',  icon: Upload },
   { id: 'history',  label: 'Prediction Logs', icon: History },
   { id: 'security', label: 'Vault',           icon: Lock },
   { id: 'neuralbets', label: 'Neural Bets',    icon: Share2 },
@@ -124,6 +125,10 @@ export default function AdminPage() {
   
   const [selectedSlip, setSelectedSlip] = useState<any>(null);
   const [pushing, setPushing] = useState<Record<string, boolean>>({});
+  
+  const [reports, setReports] = useState<any[]>([]);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importStatus, setImportStatus] = useState<string | null>(null);
 
   const pushToNeuralBets = async (slipId: string) => {
     setPushing(p => ({ ...p, [slipId]: true }));
@@ -244,6 +249,53 @@ export default function AdminPage() {
       console.error('Failed to trigger processor:', e);
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const loadReports = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/reports');
+      const data = await res.json();
+      if (data.success) setReports(data.reports);
+    } catch (e) {
+      console.error('Failed to load reports:', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (active === 'importer') loadReports();
+  }, [active, loadReports]);
+
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    setImportStatus('Uploading and parsing document...');
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('sourceName', 'Admin PDF Upload');
+
+    try {
+      const res = await fetch('/api/admin/import/pdf', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (data.success) {
+        showNotification(`Successfully imported ${data.count} matches!`, 'success');
+        setImportStatus(null);
+        loadReports();
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (e: any) {
+      console.error(e);
+      showNotification(`Import failed: ${e.message}`, 'error');
+      setImportStatus(null);
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -1285,6 +1337,99 @@ export default function AdminPage() {
                     </div>
                     )
                   )}
+                </div>
+              </motion.div>
+            )}
+
+            {/* ── Importer ─────────────────────────────────────── */}
+            {active === 'importer' && (
+              <motion.div key="importer" variants={fadeIn} initial="hidden" animate="show" exit="hidden" className="space-y-6">
+                <div className="card-base p-8 text-center space-y-6 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-purple-500 to-primary/30" />
+                  
+                  <div className="mx-auto w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-2">
+                    <Upload size={32} />
+                  </div>
+                  
+                  <div className="max-w-md mx-auto">
+                    <h3 className="text-xl font-bold text-foreground">Comprehensive Odds Importer</h3>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Upload bookmaker PDF odds sheets (e.g. SportsLepep) to extract deep market data like 
+                      HT/FT, Double Chance, and Correct Score codes.
+                    </p>
+                  </div>
+
+                  <div className="max-w-sm mx-auto pt-4">
+                    <label className={`
+                      flex flex-col items-center justify-center w-full h-32 
+                      border-2 border-dashed rounded-2xl cursor-pointer
+                      transition-all duration-300
+                      ${isImporting ? 'border-primary bg-primary/5 cursor-not-allowed' : 'border-border hover:border-primary/50 hover:bg-secondary/20'}
+                    `}>
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        {isImporting ? (
+                          <>
+                            <Loader2 size={24} className="animate-spin text-primary mb-3" />
+                            <p className="text-xs font-medium text-primary animate-pulse">{importStatus}</p>
+                          </>
+                        ) : (
+                          <>
+                            <FileText size={24} className="text-muted-foreground mb-3" />
+                            <p className="text-sm text-muted-foreground"><span className="font-semibold text-primary">Click to upload</span> or drag and drop</p>
+                            <p className="text-[10px] text-muted-foreground/60 mt-1 uppercase tracking-tighter">PDF Documents Only</p>
+                          </>
+                        )}
+                      </div>
+                      <input 
+                        type="file" 
+                        className="hidden" 
+                        accept=".pdf" 
+                        onChange={handlePdfUpload} 
+                        disabled={isImporting} 
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="card-base overflow-hidden">
+                  <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-secondary/5">
+                    <h3 className="font-semibold text-sm text-foreground flex items-center gap-2">
+                      <History size={16} className="text-primary" />
+                      Import History & Market Reports
+                    </h3>
+                    <button onClick={loadReports} className="btn-icon">
+                      <RefreshCcw size={14} />
+                    </button>
+                  </div>
+
+                  <div className="divide-y divide-border/50">
+                    {reports.length > 0 ? (
+                      reports.map(report => (
+                        <div key={report.id} className="p-5 hover:bg-secondary/10 transition-colors flex items-center justify-between group">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                              <FileText size={20} />
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-bold text-foreground">{report.filename}</h4>
+                              <div className="flex items-center gap-3 mt-1">
+                                <span className="text-[10px] text-muted-foreground font-mono uppercase tracking-widest">{formatToWAT(report.createdAt)}</span>
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-bold">{report.parsedCount} Matches</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                             <span className="badge badge-emerald text-[9px] font-bold uppercase tracking-widest">Processed</span>
+                             <p className="text-[10px] text-muted-foreground mt-1 truncate max-w-[200px]">{report.rawSummary}</p>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-12 text-center">
+                        <p className="text-sm text-muted-foreground">No import reports available. Upload a PDF to get started.</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </motion.div>
             )}
