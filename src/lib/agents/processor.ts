@@ -11,24 +11,24 @@ export class ProcessorAgent {
   }
 
   async processRawData(days: number = 2): Promise<number> {
-    console.log(`Processor Agent: Starting focused analysis for the last ${days} days...`);
+    console.log(`Processor Agent: Starting focused analysis for data imported in the last ${days} days...`);
 
-    // 1. Fetch raw scraped data
+    // 1. Fetch recently imported raw data
     const dateLimit = new Date();
     dateLimit.setDate(dateLimit.getDate() - days);
 
     const rawData = await prisma.scrapedData.findMany({
       where: {
-        matchDate: {
+        createdAt: {
           gte: dateLimit
         }
       },
-      orderBy: { matchDate: 'asc' },
-      take: 2000 
+      orderBy: { createdAt: 'desc' },
+      take: 1000 
     });
 
     if (rawData.length === 0) {
-      console.log(`Processor Agent: No raw data found for the last ${days} days.`);
+      console.log(`Processor Agent: No new raw data found for the last ${days} days.`);
       return 0;
     }
 
@@ -39,13 +39,13 @@ export class ProcessorAgent {
 
     console.log(`Processor Agent: Found ${rawData.length} records. Merging with system memory...`);
 
-    // 3. Build a compact summary for AI
-    const sampleSize = Math.min(rawData.length, 150);
+    // 3. Build a compact summary for AI (reduced size for speed)
+    const sampleSize = Math.min(rawData.length, 50);
     const sample = rawData.slice(0, sampleSize);
     
     const matchSummary = sample.map((m, i) => {
       const odds = m.odds as any;
-      return `${i + 1}. ${m.homeTeam} vs ${m.awayTeam} [${m.league}] | H:${odds?.home ?? '?'} D:${odds?.draw ?? '?'} A:${odds?.away ?? '?'} | Date: ${m.matchDate?.toISOString().split('T')[0]}`;
+      return `${i + 1}. ${m.homeTeam} vs ${m.awayTeam} [${m.league}] | H:${odds?.home ?? '?'} D:${odds?.draw ?? '?'} A:${odds?.away ?? '?'} | Imported: ${m.createdAt?.toISOString().split('T')[0]}`;
     }).join('\n');
 
     const processorPrompt = this.config.systemPrompt

@@ -226,8 +226,9 @@ export default function AdminPage() {
     try {
       await fetch('/api/cron/scrape');
       await loadScrapedData(); // refresh data after scraping
-    } catch (e) {
+    } catch (e: any) {
       console.error('Failed to trigger scraper:', e);
+      showNotification(`Scraping error: ${e.message}`, 'error');
     } finally {
       setIsScraping(false);
     }
@@ -245,8 +246,9 @@ export default function AdminPage() {
       } else {
         showNotification(`Processing failed: ${data.error}`, 'error');
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Failed to trigger processor:', e);
+      showNotification(`Processing error: ${e.message || 'The request timed out. Try again with fewer records.'}`, 'error');
     } finally {
       setIsProcessing(false);
     }
