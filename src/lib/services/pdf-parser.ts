@@ -1,3 +1,4 @@
+import PDFParser from 'pdf2json';
 import { AIFactory, AIConfig, AIProvider } from '../ai/provider';
 import { configService } from './config';
 
@@ -18,7 +19,7 @@ export interface ExtractedMarketMatch {
     };
     doubleChance?: { homeDraw: number; homeAway: number; drawAway: number };
     btts?: { yes: number; no: number };
-    codes?: Record<string, string>; // Store all the special bookmaker codes
+    codes?: Record<string, string>; 
   };
 }
 
@@ -29,7 +30,6 @@ export class PDFParserService {
     if (this.aiFactory) return;
     const config = await configService.getConfig();
     
-    // ── Primary provider selection ──────────────────────────────────────────
     let provider: AIProvider = 'gemini';
     let apiKey = '';
     let model = 'gemini-2.0-flash';
@@ -52,7 +52,6 @@ export class PDFParserService {
       model = 'grok-beta';
     }
 
-    // ── Build Full Fallback Chain ──────────────────────────────────────────
     const allEnabledProviders: Array<{ provider: AIProvider; apiKey: string; model: string }> = [];
     if (config.aiProviders.gemini.enabled && config.aiProviders.gemini.apiKey) {
       allEnabledProviders.push({ provider: 'gemini', apiKey: config.aiProviders.gemini.apiKey, model: config.aiProviders.gemini.model || 'gemini-2.0-flash' });
@@ -78,29 +77,33 @@ export class PDFParserService {
     this.aiFactory = new AIFactory(aiConfig);
   }
 
+  private async extractTextFromPDF(buffer: Buffer): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const pdfParser = new (PDFParser as any)(null, 1);
+      
+      pdfParser.on("pdfParser_dataError", (errData: any) => {
+        console.error('[PDF-PARSER] Extraction Error:', errData.parserError);
+        reject(errData.parserError);
+      });
+      
+      pdfParser.on("pdfParser_dataReady", () => {
+        const text = (pdfParser as any).getRawTextContent();
+        resolve(text);
+      });
+      
+      pdfParser.parseBuffer(buffer);
+    });
+  }
+
   async parseOddsPDF(buffer: Buffer): Promise<ExtractedMarketMatch[]> {
     await this.initAI();
     
     try {
-      console.log('[PDF-PARSER] Polyfilling DOMMatrix for Node environment...');
-      // @ts-ignore
-      if (typeof global !== 'undefined' && !global.DOMMatrix) {
-        const DM = require('dommatrix');
-        // @ts-ignore
-        global.DOMMatrix = DM.DOMMatrix || DM.default || DM;
-      }
-
-      console.log('[PDF-PARSER] Dynamically importing pdf-parse...');
-      // Dynamic import to avoid build-time issues with legacy CJS modules
-      const pdf = require('pdf-parse');
+      console.log('[PDF-PARSER] Extracting text using pdf2json...');
+      const rawText = await this.extractTextFromPDF(buffer);
       
-      console.log('[PDF-PARSER] Extracting text from buffer...');
-      const data = await pdf(buffer);
-      const rawText = data.text;
+      console.log(`[PDF-PARSER] Extracted ${rawText.length} characters. Sending to AI...`);
       
-      console.log(`[PDF-PARSER] Extracted ${rawText.length} characters. Sending to AI for structured parsing...`);
-      
-      // We process in chunks if the text is too long, but for a single sheet 2.0 Flash context is huge.
       const prompt = `
         EXTRACT ALL MATCH DATA FROM THIS BOOKMAKER ODDS SHEET.
         
@@ -139,11 +142,10 @@ export class PDFParserService {
       
       const { text: resultText } = await this.aiFactory.chat(prompt);
       
-      // Robust JSON extraction: find the first '[' and the last ']'
       const jsonMatch = resultText.match(/\[[\s\S]*\]/);
       if (!jsonMatch) {
         console.error('[PDF-PARSER] No JSON array found in AI response:', resultText);
-        throw new Error('The AI model could not find match data in this document. Please ensure it is a valid betting odds sheet.');
+        throw new Error('The AI model could not find match data in this document.');
       }
 
       try {
@@ -152,7 +154,7 @@ export class PDFParserService {
         return Array.isArray(parsed) ? parsed : [];
       } catch (parseErr) {
         console.error('[PDF-PARSER] JSON Parse Error:', parseErr);
-        throw new Error('The AI generated malformed data. Please try uploading the document again.');
+        throw new Error('The AI generated malformed data.');
       }
     } catch (err: any) {
       console.error('[PDF-PARSER] Failed to parse PDF:', err.message);
