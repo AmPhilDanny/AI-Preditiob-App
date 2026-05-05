@@ -1,5 +1,5 @@
 // @ts-ignore
-import pdf from 'pdf-parse/lib/pdf-parse.js';
+const pdf = require('pdf-parse');
 import { AIFactory, AIConfig, AIProvider } from '../ai/provider';
 import { configService } from './config';
 
