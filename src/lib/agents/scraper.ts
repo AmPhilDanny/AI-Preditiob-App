@@ -79,34 +79,52 @@ export class ScraperAgent {
 
   async fetchTargetedWeb(url: string): Promise<MatchData[]> {
     console.log(`[SCRAPER] Targeted crawl for URL: ${url}...`);
+    const config = await configService.getConfig();
+    let html = '';
+    let usedFallback = false;
+
     try {
-      const config = await configService.getConfig();
-      const webMatches: MatchData[] = [];
-      
       const response = await axios.get(url, { 
         timeout: 15000,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
           'Accept-Language': 'en-US,en;q=0.9',
-          'Accept-Encoding': 'gzip, deflate, br',
           'Referer': 'https://www.google.com/',
-          'Sec-Ch-Ua': '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
-          'Sec-Ch-Ua-Mobile': '?0',
-          'Sec-Ch-Ua-Platform': '"Windows"',
-          'Sec-Fetch-Dest': 'document',
-          'Sec-Fetch-Mode': 'navigate',
-          'Sec-Fetch-Site': 'cross-site',
-          'Sec-Fetch-User': '?1',
           'Upgrade-Insecure-Requests': '1',
           'Cache-Control': 'max-age=0'
         }
       });
-      const html = response.data;
+      html = response.data;
+    } catch (err: any) {
+      const statusCode = err.response?.status;
+      console.warn(`[SCRAPER] Direct fetch failed for ${url} (Status: ${statusCode || 'Unknown'}). Attempting Serper fallback...`);
+      
+      // If blocked (403, 401) or other error, try Serper Scrape fallback
+      if (config.aiProviders.serper?.enabled && config.aiProviders.serper?.apiKey) {
+        try {
+          const serper = new SerperService(config.aiProviders.serper.apiKey);
+          html = await serper.scrape(url);
+          usedFallback = true;
+          console.log(`[SCRAPER] Successfully retrieved content via Serper fallback for ${url}`);
+        } catch (serperErr: any) {
+          console.error(`[SCRAPER] Serper fallback also failed:`, serperErr.message);
+          throw new Error(`Scraping blocked and fallback failed. The website ${url} is heavily protected.`);
+        }
+      } else {
+        if (statusCode === 403) {
+          throw new Error(`Access Forbidden (403): The website ${url} is blocking the scraper. Please enable Serper API in settings to use the fallback crawler.`);
+        }
+        throw err;
+      }
+    }
+
+    try {
+      const webMatches: MatchData[] = [];
       const $ = cheerio.load(html);
       
-      $('script, style, nav, footer').remove();
-      const cleanContent = $('body').text().replace(/\s+/g, ' ').trim().substring(0, 8000);
+      $('script, style, nav, footer, iframe, aside').remove();
+      const cleanContent = $('body').text().replace(/\s+/g, ' ').trim().substring(0, 15000);
 
       const aiConfig: AIConfig = {
         provider: config.aiProviders.gemini.enabled ? 'gemini' : 
@@ -119,13 +137,13 @@ export class ScraperAgent {
       };
 
       if (!aiConfig.apiKey) {
-        throw new Error('Gemini API Key is missing. Please configure it in the Scraping Config tab.');
+        throw new Error('AI Provider API Key is missing. Please configure Gemini or OpenRouter in settings.');
       }
       
       const ai = new AIFactory(aiConfig);
       const extracted = await ai.extractFromHtml(cleanContent);
       
-      console.log(`[SCRAPER] AI extracted ${extracted.length} matches from ${url}`);
+      console.log(`[SCRAPER] AI extracted ${extracted.length} matches from ${url} (Used Fallback: ${usedFallback})`);
       
       extracted.forEach(m => {
         webMatches.push({
@@ -134,18 +152,14 @@ export class ScraperAgent {
           league: 'Web Scraped',
           odds: { home: m.odds || 2.0, draw: 3.0, away: 3.0 },
           sourceType: 'web',
-          apiStats: { url, reasoning: m.reasoning }
+          apiStats: { url, reasoning: m.reasoning, usedFallback }
         });
       });
       
       await this.saveToDb(webMatches, 'web-crawler');
       return webMatches;
     } catch (err: any) {
-      if (err.response?.status === 403) {
-        console.error(`[SCRAPER] Access Forbidden (403) for ${url}. This site likely blocks automated requests.`);
-        throw new Error(`Access Forbidden (403): The website ${url} is blocking the scraper. You may need a more advanced crawling setup or a different source.`);
-      }
-      console.error(`[SCRAPER] Targeted crawl failed for ${url}:`, err.message);
+      console.error(`[SCRAPER] Processing failed for ${url}:`, err.message);
       throw err;
     }
   }

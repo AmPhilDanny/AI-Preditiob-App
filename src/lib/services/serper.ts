@@ -42,4 +42,28 @@ export class SerperService {
       return [];
     }
   }
+
+  async scrape(url: string): Promise<string> {
+    if (!this.apiKey) {
+      throw new Error('Serper API Key is missing. Cannot use fallback scraper.');
+    }
+
+    try {
+      console.log(`[SERPER] Scrambling headers and using Serper Proxy to scrape: ${url}...`);
+      const response = await axios.post('https://google.serper.dev/scrape', {
+        url: url
+      }, {
+        headers: {
+          'X-API-KEY': this.apiKey,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      // Serper scrape returns text in 'text' field if successful
+      return response.data.text || '';
+    } catch (err: any) {
+      console.error('[SERPER] Scrape failed:', err.message);
+      throw new Error(`Serper Scrape failed: ${err.message}`);
+    }
+  }
 }
