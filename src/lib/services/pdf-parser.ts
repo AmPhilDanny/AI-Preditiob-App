@@ -1,4 +1,4 @@
-import pdf from 'pdf-parse';
+const pdf = require('pdf-parse');
 import { AIFactory, AIConfig, AIProvider } from '../ai/provider';
 import { configService } from './config';
 
