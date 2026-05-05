@@ -281,7 +281,7 @@ Provide a structured analysis with:
         const ftAway = parseFloat(cols[5]) || 0;
         
         // Skip rows with no valid teams or no odds at all
-        if (homeTeam === "Unknown" || (ftHome === 0 && ftDraw === 0 && ftAway === 0)) {
+        if (homeTeam === "Unknown" || (isNaN(ftHome) && isNaN(ftDraw) && isNaN(ftAway)) || (ftHome === 0 && ftDraw === 0 && ftAway === 0)) {
           console.log(`Skipping irrelevant or empty row: ${homeTeam} vs ${awayTeam}`);
           continue;
         }

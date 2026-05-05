@@ -29,7 +29,14 @@ export default function ManualDataImporter() {
         body: JSON.stringify({ text }),
       });
 
-      const data = await res.json();
+      const responseText = await res.text();
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        console.error('Failed to parse response as JSON:', responseText);
+        throw new Error(`Server returned non-JSON response: ${responseText.substring(0, 100)}`);
+      }
 
       if (data.success) {
         setResult(data);
