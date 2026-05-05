@@ -275,6 +275,13 @@ export default function AdminPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Vercel Serverless Function payload limit is 4.5MB
+    const MAX_FILE_SIZE = 4.5 * 1024 * 1024;
+    if (file.size > MAX_FILE_SIZE) {
+      showNotification(`File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum allowed is 4.5MB due to platform limits.`, 'error');
+      return;
+    }
+
     setIsImporting(true);
     setImportStatus('Uploading and parsing document...');
 
@@ -289,26 +296,37 @@ export default function AdminPage() {
       });
 
       const contentType = res.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
+      let data;
+      
+      if (contentType && contentType.includes("application/json")) {
+        data = await res.json();
+      } else {
+        // Handle non-JSON responses (like 504 timeouts or 500 HTML errors)
         const text = await res.text();
-        console.error('Non-JSON response:', text.substring(0, 500));
-        throw new Error(`Server error (${res.status}). The deployment might still be in progress or the file is too large.`);
+        console.error('Non-JSON response from server:', text.substring(0, 500));
+        
+        if (res.status === 504 || res.status === 502) {
+          throw new Error('The request timed out. The PDF might be too large or complex for the current AI model.');
+        } else {
+          throw new Error(`Server error (${res.status}). The system might be under high load or the deployment is unstable.`);
+        }
       }
 
-      const data = await res.json();
       if (data.success) {
         showNotification(`Successfully imported ${data.count} matches!`, 'success');
         setImportStatus(null);
         loadReports();
       } else {
-        throw new Error(data.error);
+        throw new Error(data.error || 'Unknown import error occurred');
       }
     } catch (e: any) {
-      console.error(e);
+      console.error('[IMPORT] Error:', e);
       showNotification(`Import failed: ${e.message}`, 'error');
       setImportStatus(null);
     } finally {
       setIsImporting(false);
+      // Reset input
+      e.target.value = '';
     }
   };
 

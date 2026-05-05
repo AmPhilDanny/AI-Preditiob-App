@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { pdfParserService } from '@/lib/services/pdf-parser';
 import prisma from '@/lib/prisma';
 
+// Increased timeout for slow PDF parsing + AI analysis
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
@@ -20,25 +23,28 @@ export async function POST(request: Request) {
     const extractedMatches = await pdfParserService.parseOddsPDF(buffer);
     console.log(`[IMPORT-PDF] Successfully extracted ${extractedMatches.length} matches`);
 
-    // 2. Save matches to ScrapedData
-    const savedIds = [];
-    for (const m of extractedMatches) {
-      const record = await prisma.scrapedData.create({
-        data: {
-          sourceApi: `PDF: ${sourceName}`,
-          homeTeam: m.homeTeam,
-          awayTeam: m.awayTeam,
-          league: m.league,
-          matchDate: m.matchTime ? new Date(m.matchTime) : null,
-          odds: m.markets as any,
-          rawStats: { 
-            importDate: new Date().toISOString(),
-            sourceFile: file.name
-          }
-        }
-      });
-      savedIds.push(record.id);
+    if (extractedMatches.length === 0) {
+      return NextResponse.json({ success: false, error: 'No match data could be extracted from this PDF.' }, { status: 422 });
     }
+
+    // 2. Save matches to ScrapedData using createMany for efficiency
+    console.log(`[IMPORT-PDF] Saving ${extractedMatches.length} records to database...`);
+    const importDate = new Date();
+    
+    await prisma.scrapedData.createMany({
+      data: extractedMatches.map(m => ({
+        sourceApi: `PDF: ${sourceName}`,
+        homeTeam: m.homeTeam,
+        awayTeam: m.awayTeam,
+        league: m.league,
+        matchDate: m.matchTime ? new Date(m.matchTime) : null,
+        odds: m.markets as any,
+        rawStats: { 
+          importDate: importDate.toISOString(),
+          sourceFile: file.name
+        }
+      }))
+    });
 
     // 3. Log the report
     const report = await prisma.marketReport.create({
@@ -50,6 +56,8 @@ export async function POST(request: Request) {
       }
     });
 
+    console.log(`[IMPORT-PDF] Import completed successfully. Report ID: ${report.id}`);
+
     return NextResponse.json({ 
       success: true, 
       count: extractedMatches.length,
@@ -57,7 +65,15 @@ export async function POST(request: Request) {
     });
 
   } catch (error: any) {
-    console.error('[IMPORT-PDF] Error:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    console.error('[IMPORT-PDF] Critical Error:', error);
+    
+    // Try to return a friendly error message
+    const errorMessage = error.message || 'An unexpected error occurred during PDF processing';
+    
+    return NextResponse.json({ 
+      success: false, 
+      error: errorMessage,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    }, { status: 500 });
   }
 }

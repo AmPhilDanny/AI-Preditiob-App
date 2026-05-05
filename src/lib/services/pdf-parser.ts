@@ -1,4 +1,4 @@
-import PDFParser from 'pdf2json';
+import pdf from 'pdf-parse';
 import { AIFactory, AIConfig, AIProvider } from '../ai/provider';
 import { configService } from './config';
 
@@ -34,36 +34,28 @@ export class PDFParserService {
     let apiKey = '';
     let model = 'gemini-2.0-flash';
 
-    if (config.aiProviders.gemini.enabled && config.aiProviders.gemini.apiKey) {
-      provider = 'gemini';
-      apiKey = config.aiProviders.gemini.apiKey;
-      model = config.aiProviders.gemini.model || 'gemini-2.0-flash';
-    } else if (config.aiProviders.mistral.enabled && config.aiProviders.mistral.apiKey) {
-      provider = 'mistral';
-      apiKey = config.aiProviders.mistral.apiKey;
-      model = config.aiProviders.mistral.model || 'mistral-large-latest';
-    } else if (config.aiProviders.openrouter.enabled && config.aiProviders.openrouter.apiKey) {
-      provider = 'openrouter';
-      apiKey = config.aiProviders.openrouter.apiKey;
-      model = config.aiProviders.openrouter.model || 'google/gemini-2.0-flash-001';
-    } else if (config.aiProviders.grok.enabled && config.aiProviders.grok.apiKey) {
-      provider = 'grok';
-      apiKey = config.aiProviders.grok.apiKey;
-      model = 'grok-beta';
-    }
-
     const allEnabledProviders: Array<{ provider: AIProvider; apiKey: string; model: string }> = [];
     if (config.aiProviders.gemini.enabled && config.aiProviders.gemini.apiKey) {
       allEnabledProviders.push({ provider: 'gemini', apiKey: config.aiProviders.gemini.apiKey, model: config.aiProviders.gemini.model || 'gemini-2.0-flash' });
+      provider = 'gemini';
+      apiKey = config.aiProviders.gemini.apiKey;
+      model = config.aiProviders.gemini.model || 'gemini-2.0-flash';
     }
     if (config.aiProviders.mistral.enabled && config.aiProviders.mistral.apiKey) {
       allEnabledProviders.push({ provider: 'mistral', apiKey: config.aiProviders.mistral.apiKey, model: config.aiProviders.mistral.model || 'mistral-large-latest' });
+      if (!apiKey) {
+        provider = 'mistral';
+        apiKey = config.aiProviders.mistral.apiKey;
+        model = config.aiProviders.mistral.model || 'mistral-large-latest';
+      }
     }
     if (config.aiProviders.openrouter.enabled && config.aiProviders.openrouter.apiKey) {
       allEnabledProviders.push({ provider: 'openrouter', apiKey: config.aiProviders.openrouter.apiKey, model: config.aiProviders.openrouter.model || 'google/gemini-2.0-flash-001' });
-    }
-    if (config.aiProviders.grok.enabled && config.aiProviders.grok.apiKey) {
-      allEnabledProviders.push({ provider: 'grok', apiKey: config.aiProviders.grok.apiKey, model: 'grok-beta' });
+      if (!apiKey) {
+        provider = 'openrouter';
+        apiKey = config.aiProviders.openrouter.apiKey;
+        model = config.aiProviders.openrouter.model || 'google/gemini-2.0-flash-001';
+      }
     }
 
     const aiConfig: AIConfig = {
@@ -78,32 +70,31 @@ export class PDFParserService {
   }
 
   private async extractTextFromPDF(buffer: Buffer): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const pdfParser = new (PDFParser as any)(null, 1);
-      
-      pdfParser.on("pdfParser_dataError", (errData: any) => {
-        console.error('[PDF-PARSER] Extraction Error:', errData.parserError);
-        reject(errData.parserError);
-      });
-      
-      pdfParser.on("pdfParser_dataReady", () => {
-        const text = (pdfParser as any).getRawTextContent();
-        resolve(text);
-      });
-      
-      pdfParser.parseBuffer(buffer);
-    });
+    try {
+      console.log('[PDF-PARSER] Starting extraction with pdf-parse...');
+      const data = await pdf(buffer);
+      return data.text || '';
+    } catch (err: any) {
+      console.error('[PDF-PARSER] Extraction Error:', err.message);
+      throw new Error(`Failed to extract text from PDF: ${err.message}`);
+    }
   }
 
   async parseOddsPDF(buffer: Buffer): Promise<ExtractedMarketMatch[]> {
     await this.initAI();
     
     try {
-      console.log('[PDF-PARSER] Extracting text using pdf2json...');
       const rawText = await this.extractTextFromPDF(buffer);
       
+      if (!rawText || rawText.trim().length < 10) {
+        throw new Error('The PDF seems to be empty or could not be read.');
+      }
+
       console.log(`[PDF-PARSER] Extracted ${rawText.length} characters. Sending to AI...`);
       
+      // Limit text to 40k characters to stay within reasonable token limits and prevent timeouts
+      const truncatedText = rawText.substring(0, 40000);
+
       const prompt = `
         EXTRACT ALL MATCH DATA FROM THIS BOOKMAKER ODDS SHEET.
         
@@ -135,7 +126,7 @@ export class PDFParserService {
           }
         
         TEXT TO PARSE:
-        ${rawText.substring(0, 50000)}
+        ${truncatedText}
       `;
 
       if (!this.aiFactory) throw new Error('AI Factory not initialized');
@@ -164,3 +155,4 @@ export class PDFParserService {
 }
 
 export const pdfParserService = new PDFParserService();
+
