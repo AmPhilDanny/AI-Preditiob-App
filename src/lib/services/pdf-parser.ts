@@ -128,10 +128,22 @@ export class PDFParserService {
       if (!this.aiFactory) throw new Error('AI Factory not initialized');
       
       const { text: resultText } = await this.aiFactory.chat(prompt);
-      const cleaned = resultText.replace(/```json|```/g, '').trim();
-      const parsed = JSON.parse(cleaned);
       
-      return Array.isArray(parsed) ? parsed : [];
+      // Robust JSON extraction: find the first '[' and the last ']'
+      const jsonMatch = resultText.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        console.error('[PDF-PARSER] No JSON array found in AI response:', resultText);
+        throw new Error('The AI model could not find match data in this document. Please ensure it is a valid betting odds sheet.');
+      }
+
+      try {
+        const cleaned = jsonMatch[0];
+        const parsed = JSON.parse(cleaned);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (parseErr) {
+        console.error('[PDF-PARSER] JSON Parse Error:', parseErr);
+        throw new Error('The AI generated malformed data. Please try uploading the document again.');
+      }
     } catch (err: any) {
       console.error('[PDF-PARSER] Failed to parse PDF:', err.message);
       throw err;
