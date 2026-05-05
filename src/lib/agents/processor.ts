@@ -10,8 +10,8 @@ export class ProcessorAgent {
     this.aiFactory = new AIFactory(config);
   }
 
-  async processRawData(days: number = 30): Promise<number> {
-    console.log(`Processor Agent: Starting data organization for the last ${days} days...`);
+  async processRawData(days: number = 2): Promise<number> {
+    console.log(`Processor Agent: Starting focused analysis for the last ${days} days...`);
 
     // 1. Fetch raw scraped data
     const dateLimit = new Date();
@@ -19,12 +19,12 @@ export class ProcessorAgent {
 
     const rawData = await prisma.scrapedData.findMany({
       where: {
-        createdAt: {
+        matchDate: {
           gte: dateLimit
         }
       },
-      orderBy: { createdAt: 'desc' },
-      take: 5000 // Cap at 5000 records max
+      orderBy: { matchDate: 'asc' },
+      take: 2000 
     });
 
     if (rawData.length === 0) {
@@ -32,16 +32,20 @@ export class ProcessorAgent {
       return 0;
     }
 
-    console.log(`Processor Agent: Found ${rawData.length} records. Preparing AI summary...`);
+    // 2. Fetch "System Memory" (previous intelligence report)
+    const lastIntelligence = await prisma.processedData.findFirst({
+      orderBy: { createdAt: 'desc' }
+    });
 
-    // 2. Build a compact summary for AI to avoid context window issues
-    // Instead of sending full JSON, send a structured text summary
-    const sampleSize = Math.min(rawData.length, 100);
+    console.log(`Processor Agent: Found ${rawData.length} records. Merging with system memory...`);
+
+    // 3. Build a compact summary for AI
+    const sampleSize = Math.min(rawData.length, 150);
     const sample = rawData.slice(0, sampleSize);
     
     const matchSummary = sample.map((m, i) => {
       const odds = m.odds as any;
-      return `${i + 1}. ${m.homeTeam} vs ${m.awayTeam} [${m.league}] | H:${odds?.home ?? '?'} D:${odds?.draw ?? '?'} A:${odds?.away ?? '?'} | Source: ${m.sourceApi}`;
+      return `${i + 1}. ${m.homeTeam} vs ${m.awayTeam} [${m.league}] | H:${odds?.home ?? '?'} D:${odds?.draw ?? '?'} A:${odds?.away ?? '?'} | Date: ${m.matchDate?.toISOString().split('T')[0]}`;
     }).join('\n');
 
     const processorPrompt = this.config.systemPrompt
@@ -49,17 +53,20 @@ export class ProcessorAgent {
 
     const userContent = `${processorPrompt}
 
-TOTAL MATCHES IN DATABASE: ${rawData.length}
-SHOWING SAMPLE OF ${sampleSize} MATCHES FOR ANALYSIS:
+### 🧠 SYSTEM MEMORY (PREVIOUS ANALYSIS):
+${lastIntelligence?.summary || "No prior intelligence found."}
 
+### 🆕 NEW MATCH DATA TO ANALYZE (LAST ${days} DAYS):
+TOTAL MATCHES: ${rawData.length}
+SAMPLE OF MATCHES:
 ${matchSummary}
 
-Provide a structured analysis with:
-1. Key market trends across these matches
-2. Notable odds patterns (favorites, upsets, value bets)
-3. League-by-league breakdown
-4. Top 10 recommended bets from this dataset
-5. Overall data quality assessment`;
+### 🎯 INSTRUCTIONS:
+Using the **System Memory** for context and the **New Match Data** for current opportunities:
+1. Identify high-value patterns emerging in today's/tomorrow's matches.
+2. Compare current odds with the trends noted in previous analysis.
+3. Provide a focused list of the TOP 10 recommendations for the upcoming 48 hours.
+4. Highlight any major shifts in league form or market behavior.`;
 
     // 3. Use AI to generate insights
     let aiSummary = '';
