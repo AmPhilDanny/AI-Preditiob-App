@@ -34,13 +34,7 @@ export class AnalystAgent {
 
     if (!matches.length) {
       console.warn('[AnalystAgent] No match data available');
-      return targetOdds.map(t => ({
-        id: `SLIP-${t}-${Date.now()}`,
-        matches: [],
-        totalOdds: 0,
-        confidence: 0,
-        targetOdds: t
-      }));
+      return [];
     }
 
     // ── Step 1: Get AI predictions for ALL matches in a single batch call ─────
@@ -51,13 +45,7 @@ export class AnalystAgent {
 
     if (!allPredictions.length) {
       console.warn('[AnalystAgent] No predictions returned from AI batch');
-      return targetOdds.map(t => ({
-        id: `SLIP-${t}-${Date.now()}`,
-        matches: [],
-        totalOdds: 0,
-        confidence: 0,
-        targetOdds: t
-      }));
+      return [];
     }
 
     // ── Step 2: Filter & sort by confidence (probability) ────────────────────

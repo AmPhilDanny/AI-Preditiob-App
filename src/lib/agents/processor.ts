@@ -144,8 +144,17 @@ Provide a structured analysis with:
   }
 
   async importManualData(rawText: string): Promise<any> {
-    console.log("Processor Agent: Parsing manual copy-paste data...");
+    console.log("Processor Agent: Parsing manual data...");
     
+    // Check if it's CSV (has commas and multiple lines)
+    if (rawText.includes(',') && rawText.split('\n').length > 1) {
+      try {
+        return await this.importCSVData(rawText);
+      } catch (e) {
+        console.warn("CSV parsing failed, falling back to AI extraction", e);
+      }
+    }
+
     // Step 1: Use AI to extract structured match data from raw copy-paste text
     const extractionPrompt = `
       You are an expert data extractor. The following text is copied from a bookmaker website (like Bet365, 1xBet, etc.).
@@ -204,18 +213,102 @@ Provide a structured analysis with:
       savedRecords.push(record);
     }
 
-    // Step 3: Create "Super Informed Analysis"
-    // Fetch recent database intelligence
+    return this.generateImportAnalysis(parsed.matches, savedRecords.length);
+  }
+
+  async importCSVData(csvText: string): Promise<any> {
+    console.log("Processor Agent: Processing CSV data...");
+    const lines = csvText.trim().split('\n');
+    const matches: any[] = [];
+    
+    // Skip header if it exists
+    const startIndex = (lines[0].toLowerCase().includes('event') || lines[0].toLowerCase().includes('date')) ? 1 : 0;
+
+    for (let i = startIndex; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      // Simple CSV split
+      const cols = line.split(',').map(c => c.trim());
+      
+      // Expected Structure: 
+      // DateTime, EventName, FT(H,D,A), HT(H,D,A), SH(H,D,A), Goals(Line,U,O), DC(HD,DA,HA), BTTS(Y,N)
+      if (cols.length < 5) continue; 
+
+      const dateTime = cols[0];
+      const eventName = cols[1]; // "Team A vs Team B"
+      
+      let homeTeam = "Unknown";
+      let awayTeam = "Unknown";
+
+      if (eventName.includes(' vs ')) {
+        [homeTeam, awayTeam] = eventName.split(' vs ');
+      } else if (eventName.includes(' - ')) {
+        [homeTeam, awayTeam] = eventName.split(' - ');
+      } else {
+        homeTeam = eventName;
+      }
+
+      const odds: any = {
+        home: parseFloat(cols[2]) || 0,
+        draw: parseFloat(cols[3]) || 0,
+        away: parseFloat(cols[4]) || 0,
+        ht: cols.length >= 8 ? { home: parseFloat(cols[5]), draw: parseFloat(cols[6]), away: parseFloat(cols[7]) } : null,
+        sh: cols.length >= 11 ? { home: parseFloat(cols[8]), draw: parseFloat(cols[9]), away: parseFloat(cols[10]) } : null,
+        goals: cols.length >= 14 ? { line: cols[11], under: parseFloat(cols[12]), over: parseFloat(cols[13]) } : null,
+        dc: cols.length >= 17 ? { hd: parseFloat(cols[14]), da: parseFloat(cols[15]), ha: parseFloat(cols[16]) } : null,
+        btts: cols.length >= 19 ? { yes: parseFloat(cols[17]), no: parseFloat(cols[18]) } : null,
+      };
+
+      // Standardize for DB
+      const standardOdds = {
+        home: odds.home,
+        draw: odds.draw,
+        away: odds.away,
+        btts: odds.btts?.yes > 0 ? "Yes" : "No",
+        over25: odds.goals?.over || 0
+      };
+
+      matches.push({
+        homeTeam,
+        awayTeam,
+        league: "CSV Import",
+        matchDate: dateTime ? new Date(dateTime) : new Date(),
+        odds: standardOdds,
+        rawStats: odds
+      });
+    }
+
+    const savedRecords = [];
+    for (const m of matches) {
+      const record = await prisma.scrapedData.create({
+        data: {
+          homeTeam: m.homeTeam,
+          awayTeam: m.awayTeam,
+          league: m.league,
+          matchDate: m.matchDate,
+          odds: m.odds,
+          rawStats: m.rawStats,
+          sourceApi: "CSV Import",
+        }
+      });
+      savedRecords.push(record);
+    }
+
+    return this.generateImportAnalysis(matches, savedRecords.length);
+  }
+
+  private async generateImportAnalysis(matches: any[], count: number): Promise<any> {
     const latestIntelligence = await prisma.processedData.findFirst({
       orderBy: { createdAt: 'desc' }
     });
 
     const analysisPrompt = `
-      You are a Master Football Analyst. We have just imported new match data from a bookmaker.
+      You are a Master Football Analyst. We have just imported new match data.
       Your task is to compare these new matches with our existing system intelligence and provide a "Super Informed Analysis".
       
       NEW MATCHES IMPORTED:
-      ${JSON.stringify(parsed.matches, null, 2)}
+      ${JSON.stringify(matches.slice(0, 20), null, 2)}
 
       EXISTING SYSTEM INTELLIGENCE:
       ${latestIntelligence?.summary || "No prior intelligence found."}
@@ -223,7 +316,7 @@ Provide a structured analysis with:
       Provide a high-impact Markdown report including:
       1. **Match Previews**: Analysis of the new matches using both the new odds and our historical data.
       2. **Strategic Insights**: Where do we see the most value?
-      3. **Final Recommendations**: Top 3 picks from this specific manual import.
+      3. **Final Recommendations**: Top picks from this specific import.
     `;
 
     const { text: analysisResult } = await this.aiFactory.chat(
@@ -233,9 +326,9 @@ Provide a structured analysis with:
 
     return {
       success: true,
-      count: savedRecords.length,
+      count: count,
       analysis: analysisResult,
-      matches: parsed.matches
+      matches: matches
     };
   }
 }

@@ -52,7 +52,7 @@ export default function ManualDataImporter() {
             <Clipboard className="text-primary w-7 h-7 sm:w-12 sm:h-12" /> Data Importer
           </h2>
           <p className="text-sm sm:text-base md:text-xl text-muted-foreground font-bold max-w-2xl">
-            Bypass scraper blocks. Copy-paste any bookmaker page text here for deep AI analysis and database syncing.
+            Bypass scraper blocks. Paste CSV data (DateTime, Event, Odds...) or raw text for instant database syncing and AI analysis.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -67,7 +67,10 @@ export default function ManualDataImporter() {
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Paste raw text or HTML from Bet365, 1xBet, etc. here..."
+              placeholder="Paste CSV data or raw bookmaker text here...
+Example CSV:
+DateTime, EventName, FT_H, FT_D, FT_A, HT_H, HT_D, HT_A, ...
+2024-05-05 15:00, Arsenal vs Chelsea, 1.8, 3.5, 4.2"
               className="form-textarea h-[350px] bg-background/50 border-2 border-border focus:border-primary/50 text-base md:text-lg font-medium p-6 transition-all"
               disabled={loading}
             />

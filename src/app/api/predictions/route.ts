@@ -128,7 +128,9 @@ export async function GET(request: Request) {
     
     const sessionId = `session_${Date.now()}`;
 
-    await Promise.all(slips.map(slip => {
+    const validSlips = slips.filter(s => s.matches && s.matches.length > 0);
+
+    const savedSlips = await Promise.all(validSlips.map(slip => {
       const isFree = slip.targetOdds <= 1.1;
       return prisma.predictionSlip.create({
         data: {
@@ -146,10 +148,14 @@ export async function GET(request: Request) {
     return NextResponse.json({
       success: true,
       sessionId,
-      slips: slips.map(s => ({
-        ...s,
-        category: s.targetOdds <= 1.1 ? "FREE" : `${s.targetOdds}x`,
-        isPremium: s.targetOdds > 1.1
+      slips: savedSlips.map(s => ({
+        id: s.id,
+        matches: s.matches,
+        totalOdds: s.totalOdds,
+        confidence: s.confidence,
+        targetOdds: s.targetOdds,
+        category: s.category,
+        isPremium: s.isPremium
       })),
       provider: aiConfig.provider,
       health: systemHealth,
