@@ -82,6 +82,13 @@ export class PDFParserService {
     await this.initAI();
     
     try {
+      console.log('[PDF-PARSER] Polyfilling DOMMatrix for Node environment...');
+      // @ts-ignore
+      if (typeof global !== 'undefined' && !global.DOMMatrix) {
+        // @ts-ignore
+        global.DOMMatrix = require('dommatrix');
+      }
+
       console.log('[PDF-PARSER] Dynamically importing pdf-parse...');
       // Dynamic import to avoid build-time issues with legacy CJS modules
       const pdf = require('pdf-parse');
