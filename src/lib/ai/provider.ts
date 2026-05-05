@@ -172,7 +172,11 @@ export class AIFactory {
 
   // ── Natural Chat (Conversation focused) ───────────────────────────────────
   async chat(message: string, history: any[] = []): Promise<{ text: string; usedFallback: boolean }> {
-    const systemPrompt = this.config.systemPrompt || "You are a helpful football assistant.";
+    const now = new Date();
+    const dateContext = `CURRENT DATE: ${now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}\n` +
+                        `CURRENT TIME: ${now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}\n\n`;
+
+    const systemPrompt = (this.config.systemPrompt || "You are a helpful football assistant.") + "\n\n" + dateContext;
     const historySection = history.length > 0 
       ? `CONVERSATION HISTORY:\n${history.map(h => `${h.role.toUpperCase()}: ${h.content}`).join('\n')}\n\n`
       : "";
@@ -188,11 +192,15 @@ export class AIFactory {
 
   // ── Data Processing (Organization focused) ───────────────────────────────────
   async process(data: any, userPrompt?: string): Promise<any> {
-    const systemPrompt = this.config.systemPrompt || "You are an expert football analyst. Provide clear, data-driven betting insights.";
+    const now = new Date();
+    const dateContext = `CURRENT DATE: ${now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}\n` +
+                        `CURRENT TIME: ${now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}\n\n`;
+
+    const systemPrompt = (this.config.systemPrompt || "You are an expert football analyst. Provide clear, data-driven betting insights.") + "\n\n" + dateContext;
     const inputJson = JSON.stringify(data).substring(0, 100000);
     
     // If a prompt is provided, we assume it already contains the necessary context
-    const userContent = userPrompt || `Analyze this match data and provide betting insights:\n\n${inputJson}`;
+    const userContent = userPrompt || `Analyze this match data and provide betting insights for TODAY:\n\n${inputJson}`;
 
     try {
       const { text, usedFallback } = await this.callWithFallback(systemPrompt, userContent);
@@ -212,7 +220,11 @@ export class AIFactory {
     matches: any[],
     chatContext?: string
   ): Promise<PredictionResult[]> {
-    const systemPrompt = this.config.systemPrompt || "You are an expert football betting analyst.";
+    const now = new Date();
+    const dateContext = `CURRENT DATE: ${now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}\n` +
+                        `CURRENT TIME: ${now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}\n\n`;
+
+    const systemPrompt = (this.config.systemPrompt || "You are an expert football betting analyst.") + "\n\n" + dateContext;
 
     const matchSummary = matches.map((m, i) =>
       `${i + 1}. ${m.homeTeam} vs ${m.awayTeam} [${m.league}] | H:${m.odds?.home ?? '?'} D:${m.odds?.draw ?? '?'} A:${m.odds?.away ?? '?'} | BTTS:${m.odds?.btts ?? 'N/A'} | Over2.5:${m.odds?.over25 ?? 'N/A'}`
