@@ -217,66 +217,127 @@ Provide a structured analysis with:
   }
 
   async importCSVData(csvText: string): Promise<any> {
-    console.log("Processor Agent: Processing CSV data...");
+    console.log("Processor Agent: Processing complex CSV data...");
     const lines = csvText.trim().split('\n');
     const matches: any[] = [];
     
-    // Skip header if it exists
-    const startIndex = (lines[0].toLowerCase().includes('event') || lines[0].toLowerCase().includes('date')) ? 1 : 0;
+    let currentLeague = "Unknown";
+    let lastMatch: any = null;
 
-    for (let i = startIndex; i < lines.length; i++) {
+    for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line) continue;
 
-      // Simple CSV split
       const cols = line.split(',').map(c => c.trim());
       
-      // Expected Structure: 
-      // DateTime, EventName, FT(H,D,A), HT(H,D,A), SH(H,D,A), Goals(Line,U,O), DC(HD,DA,HA), BTTS(Y,N)
-      if (cols.length < 5) continue; 
+      // Detect and skip headers
+      if (cols[0] === 'DateTime' || cols[1] === 'EventName' || cols[2] === 'Code') continue;
 
-      const dateTime = cols[0];
-      const eventName = cols[1]; // "Team A vs Team B"
-      
-      let homeTeam = "Unknown";
-      let awayTeam = "Unknown";
-
-      if (eventName.includes(' vs ')) {
-        [homeTeam, awayTeam] = eventName.split(' vs ');
-      } else if (eventName.includes(' - ')) {
-        [homeTeam, awayTeam] = eventName.split(' - ');
-      } else {
-        homeTeam = eventName;
+      // Detect League Row (all columns usually repeat the league name)
+      if (cols.length > 5 && cols[0] === cols[1] && cols[1] === cols[2]) {
+        currentLeague = cols[0];
+        continue;
       }
 
-      const odds: any = {
-        home: parseFloat(cols[2]) || 0,
-        draw: parseFloat(cols[3]) || 0,
-        away: parseFloat(cols[4]) || 0,
-        ht: cols.length >= 8 ? { home: parseFloat(cols[5]), draw: parseFloat(cols[6]), away: parseFloat(cols[7]) } : null,
-        sh: cols.length >= 11 ? { home: parseFloat(cols[8]), draw: parseFloat(cols[9]), away: parseFloat(cols[10]) } : null,
-        goals: cols.length >= 14 ? { line: cols[11], under: parseFloat(cols[12]), over: parseFloat(cols[13]) } : null,
-        dc: cols.length >= 17 ? { hd: parseFloat(cols[14]), da: parseFloat(cols[15]), ha: parseFloat(cols[16]) } : null,
-        btts: cols.length >= 19 ? { yes: parseFloat(cols[17]), no: parseFloat(cols[18]) } : null,
-      };
+      // Detect Extension Row (starts with empty columns, usually for extra markets like +3.5)
+      if (!cols[0] && !cols[1] && lastMatch) {
+        // Line 15, 16, 17 are Goals Line, Under, Over
+        if (cols[15] && cols[16] && cols[17]) {
+          const lineVal = cols[15];
+          const under = parseFloat(cols[16]);
+          const over = parseFloat(cols[17]);
+          
+          if (lineVal.includes('2.5')) {
+            lastMatch.odds.over25 = over;
+          }
+          // Store all goals lines in rawStats
+          if (!lastMatch.rawStats.allGoals) lastMatch.rawStats.allGoals = [];
+          lastMatch.rawStats.allGoals.push({ line: lineVal, under, over });
+        }
+        continue;
+      }
 
-      // Standardize for DB
-      const standardOdds = {
-        home: odds.home,
-        draw: odds.draw,
-        away: odds.away,
-        btts: odds.btts?.yes > 0 ? "Yes" : "No",
-        over25: odds.goals?.over || 0
-      };
+      // Detect Match Row (starts with date/time)
+      if (cols[0] && (cols[0].includes('/') || cols[0].includes('-')) && cols[0].includes(':')) {
+        const dateTime = cols[0];
+        const eventName = cols[1]; 
+        
+        let homeTeam = "Unknown";
+        let awayTeam = "Unknown";
 
-      matches.push({
-        homeTeam,
-        awayTeam,
-        league: "CSV Import",
-        matchDate: dateTime ? new Date(dateTime) : new Date(),
-        odds: standardOdds,
-        rawStats: odds
-      });
+        if (eventName.includes(' v ')) {
+          [homeTeam, awayTeam] = eventName.split(' v ');
+        } else if (eventName.includes(' vs ')) {
+          [homeTeam, awayTeam] = eventName.split(' vs ');
+        } else if (eventName.includes(' - ')) {
+          [homeTeam, awayTeam] = eventName.split(' - ');
+        } else {
+          homeTeam = eventName;
+        }
+
+        // Mapping based on study of the sample
+        const ftHome = parseFloat(cols[3]) || 0;
+        const ftDraw = parseFloat(cols[4]) || 0;
+        const ftAway = parseFloat(cols[5]) || 0;
+        
+        // Skip rows with no valid teams or no odds at all
+        if (homeTeam === "Unknown" || (ftHome === 0 && ftDraw === 0 && ftAway === 0)) {
+          console.log(`Skipping irrelevant or empty row: ${homeTeam} vs ${awayTeam}`);
+          continue;
+        }
+
+        const htHome = parseFloat(cols[7]) || 0;
+        const htDraw = parseFloat(cols[8]) || 0;
+        const htAway = parseFloat(cols[9]) || 0;
+
+        const shHome = parseFloat(cols[11]) || 0;
+        const shDraw = parseFloat(cols[12]) || 0;
+        const shAway = parseFloat(cols[13]) || 0;
+
+        const goalLine = cols[15] || "";
+        const goalUnder = parseFloat(cols[16]) || 0;
+        const goalOver = parseFloat(cols[17]) || 0;
+
+        const dcHD = parseFloat(cols[19]) || 0;
+        const dcDA = parseFloat(cols[20]) || 0;
+        const dcHA = parseFloat(cols[21]) || 0;
+
+        // BTTS Yes/No are usually near the end
+        // In the sample: ...,69620.0,1.9,1.65,69622.0,69617.0,69609.0,69621.0,69610.0
+        // If cols[23] and cols[24] are small numbers, they might be BTTS
+        const bttsYes = parseFloat(cols[27]) || parseFloat(cols[23]) || 0;
+        const bttsNo = parseFloat(cols[28]) || parseFloat(cols[24]) || 0;
+
+        const standardOdds = {
+          home: ftHome,
+          draw: ftDraw,
+          away: ftAway,
+          btts: bttsYes > 0 ? "Yes" : "No",
+          over25: goalLine.includes('2.5') ? goalOver : 0
+        };
+
+        const rawStats = {
+          ft: { home: ftHome, draw: ftDraw, away: ftAway },
+          ht: { home: htHome, draw: htDraw, away: htAway },
+          sh: { home: shHome, draw: shDraw, away: shAway },
+          goals: { line: goalLine, under: goalUnder, over: goalOver },
+          dc: { hd: dcHD, da: dcDA, ha: dcHA },
+          btts: { yes: bttsYes, no: bttsNo }
+        };
+
+        const match = {
+          homeTeam,
+          awayTeam,
+          league: currentLeague,
+          matchDate: parseCSVDate(dateTime),
+          odds: standardOdds,
+          rawStats: rawStats,
+          sourceApi: "CSV Import"
+        };
+
+        matches.push(match);
+        lastMatch = match;
+      }
     }
 
     const savedRecords = [];
@@ -287,9 +348,9 @@ Provide a structured analysis with:
           awayTeam: m.awayTeam,
           league: m.league,
           matchDate: m.matchDate,
-          odds: m.odds,
-          rawStats: m.rawStats,
-          sourceApi: "CSV Import",
+          odds: m.odds as any,
+          rawStats: m.rawStats as any,
+          sourceApi: m.sourceApi,
         }
       });
       savedRecords.push(record);
@@ -409,4 +470,29 @@ ${sourceBreakdown}
 ### ℹ️ Note
 
 This summary was generated automatically without AI analysis. To get full AI-powered betting insights and recommendations, ensure your AI provider API key is configured and run the processor again.`;
+}
+
+/**
+ * Parse date strings like "05/05/2026 16:00" or ISO formats
+ */
+function parseCSVDate(dateStr: string): Date {
+  if (!dateStr) return new Date();
+  
+  try {
+    // Handle DD/MM/YYYY HH:mm
+    if (dateStr.includes('/') && dateStr.includes(':')) {
+      const [datePart, timePart] = dateStr.split(' ');
+      const [day, month, year] = datePart.split('/').map(Number);
+      const [hour, minute] = timePart.split(':').map(Number);
+      
+      // Month is 0-indexed in JS Date
+      const d = new Date(year, month - 1, day, hour, minute);
+      if (!isNaN(d.getTime())) return d;
+    }
+    
+    const d = new Date(dateStr);
+    return isNaN(d.getTime()) ? new Date() : d;
+  } catch (e) {
+    return new Date();
+  }
 }
