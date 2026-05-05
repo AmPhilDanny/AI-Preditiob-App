@@ -67,10 +67,11 @@ export class AnalystAgent {
 
     // ── Step 3: Build accumulators for each target ────────────────────────────
     const slips: BetSlip[] = [];
+    const globalUsedMatches = new Set<string>();
 
     for (const target of targetOdds) {
       const slipOptions = options[target] || {};
-      const slip = this.buildAccumulator(qualified, target, slipOptions);
+      const slip = this.buildAccumulator(qualified, target, slipOptions, globalUsedMatches);
       slips.push(slip);
     }
 
@@ -89,7 +90,8 @@ export class AnalystAgent {
   private buildAccumulator(
     predictions: PredictionResult[], 
     target: number, 
-    options: { maxMatches?: number; preferredMarket?: string } = {}
+    options: { maxMatches?: number; preferredMarket?: string } = {},
+    globalUsedMatches?: Set<string>
   ): BetSlip {
     // Determine the preferred odds window for this target range
     let maxOddsPerMatch: number;
@@ -130,30 +132,34 @@ export class AnalystAgent {
     const chosen: PredictionResult[] = [];
     let combinedOdds = 1.0;
     let combinedProbability = 1.0;
-    const usedMatches = new Set<string>();
 
     // ── Step 2: Generation Logic ──────────────────────────────────────────────
+    
+    // ADJUSTMENT: Force at least 2.0 odds if not a 'free' game
+    const effectiveTarget = target < 2 && target > 1.1 ? 2.0 : target;
+    const minGames = effectiveTarget >= 2.0 ? 2 : 1;
+    const maxGames = options.maxMatches || 4;
 
     // Special Case: Target 1 (Free Bet) — return a SINGLE high-confidence match by default
-    // OR respect the maxMatches if specified (e.g. "2 matches for free game")
     if (target <= 1.1 && !options.maxMatches) {
-       if (candidates.length > 0) {
-         const best = candidates[0];
+       const best = candidates.find(p => !globalUsedMatches?.has(p.match));
+       if (best) {
          chosen.push(best);
          combinedOdds = best.odds;
          combinedProbability = best.probability;
+         globalUsedMatches?.add(best.match);
        }
     } else {
       // Greedy accumulation: keep adding matches until target is reached or limit hit
       for (const pred of candidates) {
-        if (combinedOdds >= target && chosen.length >= 1) break;
-        if (options.maxMatches && chosen.length >= options.maxMatches) break;
-        if (usedMatches.has(pred.match)) continue; // no duplicate matches
+        if (combinedOdds >= effectiveTarget && chosen.length >= minGames) break;
+        if (chosen.length >= maxGames) break;
+        if (globalUsedMatches?.has(pred.match)) continue; // no duplicate matches across ANY ticket
 
         chosen.push(pred);
         combinedOdds *= pred.odds;
         combinedProbability *= pred.probability;
-        usedMatches.add(pred.match);
+        globalUsedMatches?.add(pred.match);
       }
     }
 
