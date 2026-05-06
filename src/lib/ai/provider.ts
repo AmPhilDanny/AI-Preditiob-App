@@ -18,6 +18,7 @@ export interface PredictionResult {
   odds: number;
   probability: number;
   reasoning: string;
+  matchDate?: string;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -298,7 +299,7 @@ RETURN a JSON array only:
 
   async extractFromHtml(html: string): Promise<PredictionResult[]> {
     const systemPrompt = "Extract match data from HTML content.";
-    const userContent = `Return a JSON array of objects with: match (Home vs Away), odds, reasoning.\n\n${html.substring(0, 20000)}`;
+    const userContent = `Return a JSON array of objects with: match (Home vs Away), odds, matchDate (ISO format), reasoning.\n\n${html.substring(0, 20000)}`;
     try {
       const { text } = await this.callWithFallback(systemPrompt, userContent);
       return JSON.parse(text.replace(/```json|```/g, '').trim());
