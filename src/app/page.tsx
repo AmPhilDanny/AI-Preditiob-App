@@ -51,7 +51,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [data, setData]       = useState<any>(null);
   const [error, setError]     = useState<string | null>(null);
-  const [targets, setTargets] = useState([1, 2, 5, 10]);
+  const [targets, setTargets] = useState<string[]>(['SCENARIO_A', 'SCENARIO_B']);
   const [messages, setMessages] = useState<Message[]>([
     { role: 'assistant', content: 'Hello! I am your AI Football Assistant. I can help you analyze match data and generate high-probability slips. What would you like to know today?' }
   ]);
@@ -65,7 +65,7 @@ export default function HomePage() {
     slips: any[];
     provider: string;
     timestamp: string;
-    targets: number[];
+    targets: string[];
   }
   const [slipHistory, setSlipHistory] = useState<SlipHistory[]>([]);
   const [showHistory, setShowHistory] = useState(false);
@@ -453,16 +453,16 @@ export default function HomePage() {
               </div>
               <div className="flex items-center gap-1.5 flex-wrap">
                 {/* Tier toggles — always visible */}
-                {[1, 2, 5, 10].map(t => (
+                {['SCENARIO_A', 'SCENARIO_B'].map(t => (
                   <button
                     key={t}
                     onClick={() => setTargets(prev => prev.includes(t) ? (prev.length > 1 ? prev.filter(x => x !== t) : prev) : [...prev, t])}
                     className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-all ${
                       targets.includes(t) ? 'bg-primary/10 text-primary border-primary/30' : 'bg-secondary/80 text-muted-foreground border-border'
                     }`}
-                    title={t === 1 ? 'Free Bet (1 match)' : `${t}× Accumulator`}
+                    title={t === 'SCENARIO_A' ? 'Scenario A (4 Tickets)' : 'Scenario B (12 Tickets)'}
                   >
-                    {t === 1 ? 'FREE' : `${t}×`}
+                    {t === 'SCENARIO_A' ? 'Scenario A' : 'Scenario B'}
                   </button>
                 ))}
                 <button 
@@ -762,7 +762,7 @@ export default function HomePage() {
               </div>
             </div>
             <div className="flex items-center p-1.5 bg-secondary/50 rounded-2xl border border-border w-fit">
-              {[1, 2, 5, 10].map(t => (
+              {['SCENARIO_A', 'SCENARIO_B'].map(t => (
                 <button
                   key={t}
                   onClick={() => {
@@ -773,7 +773,7 @@ export default function HomePage() {
                     targets.includes(t) ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  {t === 1 ? 'FREE' : `${t}×`}
+                  {t === 'SCENARIO_A' ? 'Scenario A' : 'Scenario B'}
                 </button>
               ))}
             </div>
@@ -792,7 +792,7 @@ export default function HomePage() {
                   <div className="flex items-start justify-between mb-6">
                     <div>
                       <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-2">
-                        {slip.targetOdds <= 1.1 ? 'Risk-Free Prediction' : `Target Multiplier: ${slip.targetOdds}×`}
+                        {slip.targetOdds === 0 ? slip.category : (slip.targetOdds <= 1.1 ? 'Risk-Free Prediction' : `Target Multiplier: ${slip.targetOdds}×`)}
                       </p>
                       <h3 className="font-display text-4xl sm:text-5xl font-black text-foreground leading-none">
                         {slip.totalOdds}

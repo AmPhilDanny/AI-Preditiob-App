@@ -10,7 +10,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const targetStr = searchParams.get('targets');
   const chatContext = searchParams.get('chatContext') || undefined;
-  const targets = targetStr ? targetStr.split(',').map(Number) : [2, 5, 10];
+  const targets = targetStr ? targetStr.split(',').map(t => isNaN(Number(t)) ? t : Number(t)) : ['SCENARIO_A', 'SCENARIO_B'];
 
   const config = await configService.getConfig();
 
@@ -138,8 +138,8 @@ export async function GET(request: Request) {
           sessionId,
           totalOdds: slip.totalOdds,
           confidence: slip.confidence,
-          targetOdds: slip.targetOdds,
-          category: isFree ? "FREE" : `${slip.targetOdds}x`,
+          targetOdds: slip.targetOdds as number,
+          category: (slip as any).category || (isFree ? "FREE" : `${slip.targetOdds}x`),
           isPremium: !isFree,
           matches: slip.matches as any
         }

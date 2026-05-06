@@ -6,7 +6,8 @@ export interface BetSlip {
   matches: PredictionResult[];
   totalOdds: number;
   confidence: number;
-  targetOdds: number;
+  targetOdds: number | string;
+  category?: string;
 }
 
 export class AnalystAgent {
@@ -26,9 +27,9 @@ export class AnalystAgent {
    */
   async generateSlips(
     matches: MatchData[],
-    targetOdds: number[] = [1, 2, 5, 10],
+    targetOdds: (number | string)[] = [1, 2, 5, 10],
     chatContext?: string,
-    options: Record<number, { maxMatches?: number; preferredMarket?: string }> = {}
+    options: Record<string, { maxMatches?: number; preferredMarket?: string }> = {}
   ): Promise<BetSlip[]> {
     console.log(`[AnalystAgent] Generating slips for targets: ${targetOdds.join(', ')}`);
 
@@ -58,9 +59,17 @@ export class AnalystAgent {
     const globalUsedMatches = new Set<string>();
 
     for (const target of targetOdds) {
-      const slipOptions = options[target] || {};
-      const slip = this.buildAccumulator(qualified, target, slipOptions, globalUsedMatches);
-      slips.push(slip);
+      if (target === 'SCENARIO_A') {
+        const slipsA = this.buildScenarioA(qualified);
+        slips.push(...slipsA);
+      } else if (target === 'SCENARIO_B') {
+        const slipsB = this.buildScenarioB(qualified);
+        slips.push(...slipsB);
+      } else if (typeof target === 'number') {
+        const slipOptions = options[target] || {};
+        const slip = this.buildAccumulator(qualified, target, slipOptions, globalUsedMatches);
+        slips.push(slip);
+      }
     }
 
     return slips;
@@ -159,5 +168,93 @@ export class AnalystAgent {
       confidence: Math.round(combinedProbability * 100),
       targetOdds: target
     };
+  }
+
+  /**
+   * Helper to generate combinations of a specific size from an array
+   */
+  private getCombinations<T>(array: T[], size: number): T[][] {
+    const result: T[][] = [];
+    
+    function combine(start: number, currentCombo: T[]) {
+      if (currentCombo.length === size) {
+        result.push([...currentCombo]);
+        return;
+      }
+      for (let i = start; i < array.length; i++) {
+        currentCombo.push(array[i]);
+        combine(i + 1, currentCombo);
+        currentCombo.pop();
+      }
+    }
+    
+    combine(0, []);
+    return result;
+  }
+
+  private buildScenarioA(predictions: PredictionResult[]): BetSlip[] {
+    // 12 games, 4 tickets of 3
+    const top12 = predictions.slice(0, 12);
+    const slips: BetSlip[] = [];
+    
+    for (let i = 0; i < top12.length; i += 3) {
+      const chunk = top12.slice(i, i + 3);
+      if (chunk.length === 0) continue;
+      
+      let combinedOdds = 1.0;
+      let combinedProbability = 1.0;
+      for (const pred of chunk) {
+        combinedOdds *= pred.odds;
+        combinedProbability *= pred.probability;
+      }
+      
+      slips.push({
+        id: `SLIP-A-${Date.now()}-${i}`,
+        matches: chunk,
+        totalOdds: parseFloat(combinedOdds.toFixed(2)),
+        confidence: Math.round(combinedProbability * 100),
+        targetOdds: 0,
+        category: 'Scenario A'
+      });
+    }
+    
+    return slips;
+  }
+
+  private buildScenarioB(predictions: PredictionResult[]): BetSlip[] {
+    // Top 8 games, 12 tickets of 3 combinations
+    const top8 = predictions.slice(0, 8);
+    const combos = this.getCombinations(top8, 3);
+    
+    // Evaluate combos
+    const evaluatedCombos = combos.map(chunk => {
+      let combinedOdds = 1.0;
+      let combinedProbability = 1.0;
+      for (const pred of chunk) {
+        combinedOdds *= pred.odds;
+        combinedProbability *= pred.probability;
+      }
+      return { chunk, combinedOdds, combinedProbability };
+    });
+    
+    // Sort by combined probability descending
+    evaluatedCombos.sort((a, b) => b.combinedProbability - a.combinedProbability);
+    
+    // Take top 12
+    const top12Combos = evaluatedCombos.slice(0, 12);
+    
+    const slips: BetSlip[] = [];
+    top12Combos.forEach((c, i) => {
+      slips.push({
+        id: `SLIP-B-${Date.now()}-${i}`,
+        matches: c.chunk,
+        totalOdds: parseFloat(c.combinedOdds.toFixed(2)),
+        confidence: Math.round(c.combinedProbability * 100),
+        targetOdds: 0,
+        category: 'Scenario B'
+      });
+    });
+    
+    return slips;
   }
 }
