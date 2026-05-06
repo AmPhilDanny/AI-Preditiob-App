@@ -11,41 +11,84 @@ export class ProcessorAgent {
   }
 
   async processRawData(days: number = 2): Promise<number> {
-    console.log(`Processor Agent: Starting focused analysis for data imported in the last ${days} days...`);
+    console.log(`Processor Agent: Starting AI-powered analysis for upcoming matches over the next ${days} days...`);
 
-    // 1. Fetch recently imported raw data
-    const dateLimit = new Date();
-    dateLimit.setDate(dateLimit.getDate() - days);
+    // 1. Fetch matches happening within our target window (including midnights)
+    const pastDate = new Date();
+    pastDate.setHours(pastDate.getHours() - 12); // Look back 12 hours to catch midnight/early morning games
+
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + days);
 
     const rawData = await prisma.scrapedData.findMany({
       where: {
-        createdAt: {
-          gte: dateLimit
+        matchDate: {
+          gte: pastDate,
+          lte: futureDate
         }
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { matchDate: 'asc' },
       take: 1000 
     });
 
     if (rawData.length === 0) {
-      console.log(`Processor Agent: No new raw data found for the last ${days} days.`);
+      console.log(`Processor Agent: No upcoming matches found between ${pastDate.toISOString()} and ${futureDate.toISOString()}.`);
       return 0;
     }
 
     // 2. Fetch "System Memory" (previous intelligence report)
     const lastIntelligence = await prisma.processedData.findFirst({
+      where: {
+        homeTeam: "Intelligence Summary" // Only get actual summaries, not fallback records if any exist
+      },
       orderBy: { createdAt: 'desc' }
     });
 
-    console.log(`Processor Agent: Found ${rawData.length} records. Merging with system memory...`);
+    console.log(`Processor Agent: Found ${rawData.length} upcoming records. Preparing diverse data sample...`);
 
-    // 3. Build a compact summary for AI (reduced size for speed)
-    const sampleSize = Math.min(rawData.length, 50);
-    const sample = rawData.slice(0, sampleSize);
+    // 3. Deduplicate matches and build a diverse summary
+    const uniqueMatchesMap = new Map<string, typeof rawData[0]>();
     
-    const matchSummary = sample.map((m, i) => {
+    for (const match of rawData) {
+      const sig = getMatchSignature(match);
+      if (uniqueMatchesMap.has(sig)) {
+        // Match exists in multiple sources! Merge the source tags to highlight this cross-reference.
+        const existing = uniqueMatchesMap.get(sig)!;
+        if (!existing.sourceApi.includes(match.sourceApi)) {
+          existing.sourceApi += ` & ${match.sourceApi}`;
+        }
+      } else {
+        uniqueMatchesMap.set(sig, match);
+      }
+    }
+    
+    const uniqueRawData = Array.from(uniqueMatchesMap.values());
+
+    // Separate by source type for interleaving
+    const crossReferencedData = uniqueRawData.filter(m => m.sourceApi.includes('&'));
+    const csvData = uniqueRawData.filter(m => (m.sourceApi.includes('CSV') || m.sourceApi.includes('Manual')) && !m.sourceApi.includes('&'));
+    const apiData = uniqueRawData.filter(m => !m.sourceApi.includes('CSV') && !m.sourceApi.includes('Manual') && !m.sourceApi.includes('&'));
+    
+    const sample: typeof uniqueRawData = [];
+    const SAMPLE_LIMIT = 150;
+    
+    // Priority 1: Matches verified by multiple sources
+    for (const m of crossReferencedData) {
+      if (sample.length < SAMPLE_LIMIT) sample.push(m);
+    }
+    
+    // Priority 2: Interleave the rest to ensure a rich mix of CSV and API
+    let i = 0, j = 0;
+    while (sample.length < SAMPLE_LIMIT && (i < csvData.length || j < apiData.length)) {
+      if (i < csvData.length) sample.push(csvData[i++]);
+      if (sample.length >= SAMPLE_LIMIT) break;
+      if (j < apiData.length) sample.push(apiData[j++]);
+    }
+    
+    const matchSummary = sample.map((m, idx) => {
       const odds = m.odds as any;
-      return `${i + 1}. ${m.homeTeam} vs ${m.awayTeam} [${m.league}] | H:${odds?.home ?? '?'} D:${odds?.draw ?? '?'} A:${odds?.away ?? '?'} | Imported: ${m.createdAt?.toISOString().split('T')[0]}`;
+      const dateStr = m.matchDate ? m.matchDate.toISOString().split('T').join(' ').substring(0, 16) : 'Unknown';
+      return `${idx + 1}. ${m.homeTeam} vs ${m.awayTeam} [${m.league}] | H:${odds?.home ?? '?'} D:${odds?.draw ?? '?'} A:${odds?.away ?? '?'} | Date: ${dateStr} | Source: ${m.sourceApi}`;
     }).join('\n');
 
     const processorPrompt = this.config.systemPrompt
@@ -56,40 +99,33 @@ export class ProcessorAgent {
 ### 🧠 SYSTEM MEMORY (PREVIOUS ANALYSIS):
 ${lastIntelligence?.summary || "No prior intelligence found."}
 
-### 🆕 NEW MATCH DATA TO ANALYZE (LAST ${days} DAYS):
-TOTAL MATCHES: ${rawData.length}
-SAMPLE OF MATCHES:
+### 🆕 NEW MATCH DATA TO ANALYZE (COMBINED SOURCES):
+TOTAL MATCHES: ${uniqueRawData.length} (Deduplicated)
+SAMPLE OF MATCHES (TOP ${SAMPLE_LIMIT} MIXED CSV & API):
 ${matchSummary}
 
 ### 🎯 INSTRUCTIONS:
 Using the **System Memory** for context and the **New Match Data** for current opportunities:
-1. Identify high-value patterns emerging in today's/tomorrow's matches.
+1. Identify high-value patterns emerging in today's/tomorrow's matches, contrasting CSV data with API data if applicable.
 2. Compare current odds with the trends noted in previous analysis.
 3. Provide a focused list of the TOP 10 recommendations for the upcoming 48 hours.
-4. Highlight any major shifts in league form or market behavior.`;
+4. Highlight any major shifts in league form or market behavior.
+5. Provide the output in a clear, highly analytical Markdown format.`;
 
-    // 3. Use AI to generate insights
+    // 4. Use AI to generate insights
     let aiSummary = '';
-    let aiSuccess = false;
 
-    try {
-      const result = await this.aiFactory.process(rawData.slice(0, 50), userContent);
-      if (result.success && result.summary && result.summary.length > 100) {
-        aiSummary = result.summary;
-        aiSuccess = true;
-        console.log(`Processor Agent: AI analysis successful. Summary length: ${aiSummary.length}`);
-      } else {
-        throw new Error(result.summary || 'AI returned empty summary');
-      }
-    } catch (err: any) {
-      console.error(`Processor Agent: AI failed (${err.message}). Generating fallback summary...`);
-      // Generate a meaningful fallback summary without AI
-      aiSummary = generateFallbackSummary(rawData);
-      aiSuccess = false;
+    const result = await this.aiFactory.process(sample, userContent);
+    if (result.success && result.summary && result.summary.length > 100) {
+      aiSummary = result.summary;
+      console.log(`Processor Agent: AI analysis successful. Summary length: ${aiSummary.length}`);
+    } else {
+      // Throw an error to ensure we NEVER fail silently with a fallback. AI is strictly required.
+      throw new Error(`AI processing failed or returned empty summary: ${result.summary}`);
     }
 
-    // 4. Build a compact structuredData snapshot (just the key fields, max 500 records)
-    const structuredSnapshot = rawData.slice(0, 500).map(m => {
+    // 5. Build a compact structuredData snapshot (just the key fields, max 500 records)
+    const structuredSnapshot = uniqueRawData.slice(0, 500).map(m => {
       const odds = m.odds as any;
       return {
         id: m.id,
@@ -108,20 +144,20 @@ Using the **System Memory** for context and the **New Match Data** for current o
       };
     });
 
-    // 5. Save processed intelligence record
+    // 6. Save processed intelligence record
     await prisma.processedData.create({
       data: {
         matchDate: new Date(),
         homeTeam: "Intelligence Summary",
-        awayTeam: `Analysis of ${rawData.length} matches`,
+        awayTeam: `Analysis of ${uniqueRawData.length} unique matches`,
         league: "Global Intelligence",
         summary: aiSummary,
         structuredData: structuredSnapshot as any
       }
     });
 
-    console.log(`Processor Agent: Saved intelligence report. Records: ${rawData.length}, AI Success: ${aiSuccess}`);
-    return rawData.length;
+    console.log(`Processor Agent: Saved AI intelligence report. Unique Records: ${uniqueRawData.length}`);
+    return uniqueRawData.length;
   }
 
   async cleanupOldData(days: number = 10): Promise<{ scraped: number; processed: number }> {
@@ -399,83 +435,7 @@ Using the **System Memory** for context and the **New Match Data** for current o
   }
 }
 
-/**
- * Generate a meaningful summary from raw data without AI assistance
- */
-function generateFallbackSummary(rawData: any[]): string {
-  const totalMatches = rawData.length;
-  
-  // Group by league
-  const byLeague = rawData.reduce((acc: Record<string, number>, m) => {
-    const league = m.league || 'Unknown';
-    acc[league] = (acc[league] || 0) + 1;
-    return acc;
-  }, {});
-  
-  const topLeagues = Object.entries(byLeague)
-    .sort(([,a], [,b]) => b - a)
-    .slice(0, 5);
-  
-  // Group by source
-  const bySource = rawData.reduce((acc: Record<string, number>, m) => {
-    acc[m.sourceApi] = (acc[m.sourceApi] || 0) + 1;
-    return acc;
-  }, {});
-  
-  // Analyze odds
-  const withOdds = rawData.filter(m => m.odds && (m.odds as any).home);
-  let avgHomeOdds = 0, avgDrawOdds = 0, avgAwayOdds = 0;
-  
-  if (withOdds.length > 0) {
-    avgHomeOdds = withOdds.reduce((sum, m) => sum + ((m.odds as any).home || 0), 0) / withOdds.length;
-    avgDrawOdds = withOdds.reduce((sum, m) => sum + ((m.odds as any).draw || 0), 0) / withOdds.length;
-    avgAwayOdds = withOdds.reduce((sum, m) => sum + ((m.odds as any).away || 0), 0) / withOdds.length;
-  }
 
-  const leagueBreakdown = topLeagues.map(([league, count]) => 
-    `- **${league}**: ${count} matches (${((count/totalMatches)*100).toFixed(1)}%)`
-  ).join('\n');
-
-  const sourceBreakdown = Object.entries(bySource)
-    .map(([src, count]) => `- **${src}**: ${count} records`)
-    .join('\n');
-
-  return `## Intelligence Report — Data Processing Summary
-
-**Status:** Processed without AI (fallback mode — AI provider unavailable)
-**Total Matches Analyzed:** ${totalMatches}
-**Matches with Odds Data:** ${withOdds.length}
-
----
-
-### 📊 Dataset Overview
-
-| Metric | Value |
-|--------|-------|
-| Total Records | ${totalMatches} |
-| Records with Odds | ${withOdds.length} |
-| Avg Home Win Odds | ${avgHomeOdds.toFixed(2)} |
-| Avg Draw Odds | ${avgDrawOdds.toFixed(2)} |
-| Avg Away Win Odds | ${avgAwayOdds.toFixed(2)} |
-
----
-
-### 🏆 Top Leagues by Match Count
-
-${leagueBreakdown}
-
----
-
-### 🔌 Data Sources
-
-${sourceBreakdown}
-
----
-
-### ℹ️ Note
-
-This summary was generated automatically without AI analysis. To get full AI-powered betting insights and recommendations, ensure your AI provider API key is configured and run the processor again.`;
-}
 
 /**
  * Parse date strings like "05/05/2026 16:00" or ISO formats
@@ -501,3 +461,20 @@ function parseCSVDate(dateStr: string): Date {
     return new Date();
   }
 }
+
+/**
+ * Generate a unique signature for a match to handle deduplication 
+ * across different APIs and CSV formats.
+ */
+function getMatchSignature(m: any): string {
+  // Extract only alphanumeric characters and take first 10 chars
+  const normalize = (name: string) => {
+    return (name || '').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 10);
+  };
+  
+  // Group by day to handle slight time variations
+  const dateStr = m.matchDate ? `${m.matchDate.getMonth()}-${m.matchDate.getDate()}` : 'unknown';
+  
+  return `${normalize(m.homeTeam)}-${normalize(m.awayTeam)}-${dateStr}`;
+}
+
