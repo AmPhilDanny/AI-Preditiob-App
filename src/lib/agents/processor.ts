@@ -434,12 +434,7 @@ Using the **System Memory** for context and the **New Match Data** for current o
       }))
     });
 
-    return {
-      success: true,
-      count: count,
-      analysis: `### ✅ Import Successful\n\nSuccessfully imported **${count}** matches from CSV into the system intelligence database. \n\n*Note: AI-powered strategic analysis was skipped to ensure maximum import speed and prevent server timeouts.*`,
-      matches: matches.slice(0, 5) // Return small sample to frontend
-    };
+    return this.generateImportAnalysis(matches, count);
   }
 
   private async generateImportAnalysis(matches: any[], count: number): Promise<any> {
