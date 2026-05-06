@@ -23,6 +23,7 @@ export interface MatchData {
     over25?: number;
     under25?: number;
   };
+  matchDate?: Date;
   apiStats?: any;
   scrapedOdds?: any;
   sourceType?: 'api' | 'web';
@@ -152,6 +153,7 @@ export class ScraperAgent {
           league: 'Web Scraped',
           odds: { home: m.odds || 2.0, draw: 3.0, away: 3.0 },
           sourceType: 'web',
+          matchDate: m.matchDate ? new Date(m.matchDate) : new Date(),
           apiStats: { url, reasoning: m.reasoning, usedFallback }
         });
       });
@@ -229,6 +231,7 @@ export class ScraperAgent {
         awayTeam: f.awayTeam,
         league: f.league,
         odds: { home, draw, away, btts, over25: over, under25: under },
+        matchDate: f.date ? new Date(f.date) : new Date(),
         apiStats: { 
           source: name, 
           ...f.stats, 
@@ -312,7 +315,7 @@ export class ScraperAgent {
             homeTeam: m.homeTeam,
             awayTeam: m.awayTeam,
             league: m.league,
-            matchDate: new Date(),
+            matchDate: m.matchDate || new Date(),
             odds: m.odds,
             rawStats: m.apiStats
           }
