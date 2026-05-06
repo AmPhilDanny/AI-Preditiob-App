@@ -96,6 +96,7 @@ export default function HomePage() {
       const res = await fetch(`/api/history?sessionId=${id}`, { method: 'DELETE' });
       if (res.ok) {
         setSlipHistory(prev => prev.filter(e => e.id !== id));
+        setData((prev: any) => (prev?.sessionId === id ? null : prev));
         showNotification('Session deleted successfully', 'success');
       } else {
         throw new Error('Delete failed');
@@ -736,9 +737,16 @@ export default function HomePage() {
                 <p className="text-xs text-muted-foreground">Neural consensus reached at {formatToWAT(data.timestamp)}</p>
               </div>
             </div>
-            <button onClick={fetchData} className="btn-ghost text-xs gap-2">
-              <RefreshCcw size={14} /> Refresh
-            </button>
+            <div className="flex items-center gap-2">
+              {data?.sessionId && (
+                <button onClick={() => deleteFromHistory(data.sessionId)} className="btn-ghost text-xs gap-2 text-destructive hover:text-destructive hover:bg-destructive/10">
+                  <Trash2 size={14} /> Delete Session
+                </button>
+              )}
+              <button onClick={fetchData} className="btn-ghost text-xs gap-2">
+                <RefreshCcw size={14} /> Refresh
+              </button>
+            </div>
           </div>
         )}
       </motion.section>
