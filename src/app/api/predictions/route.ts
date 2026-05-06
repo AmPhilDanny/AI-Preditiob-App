@@ -78,13 +78,12 @@ export async function GET(request: Request) {
   const health = new HealthAgent();
 
   try {
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
     const cachedMatches = await prisma.scrapedData.findMany({
       where: {
         createdAt: {
-          gte: startOfToday
+          gte: twentyFourHoursAgo
         }
       },
       orderBy: { createdAt: 'desc' },
