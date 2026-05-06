@@ -132,7 +132,7 @@ export async function GET(request: Request) {
     const validSlips = slips.filter(s => s.matches && s.matches.length > 0);
 
     const savedSlips = await Promise.all(validSlips.map(slip => {
-      const isFree = slip.targetOdds <= 1.1;
+      const isFree = typeof slip.targetOdds === 'number' && slip.targetOdds <= 1.1;
       return prisma.predictionSlip.create({
         data: {
           sessionId,
