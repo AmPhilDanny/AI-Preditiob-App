@@ -32,12 +32,24 @@ export class ProcessorAgent {
       take: 1000 
     });
 
-    if (rawData.length === 0) {
-      console.log(`Processor Agent: No upcoming matches found between ${now.toISOString()} and ${futureDate.toISOString()}.`);
+    // 2. Strict Rule: CSV/Manual data MUST be from today to be considered valid
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const freshData = rawData.filter(m => {
+      const isManual = m.sourceApi.includes('CSV') || m.sourceApi.includes('Manual');
+      if (isManual) {
+        return m.createdAt >= startOfToday;
+      }
+      return true; // API data is trusted based on matchDate
+    });
+
+    if (freshData.length === 0) {
+      console.log(`Processor Agent: No upcoming fresh matches found between ${now.toISOString()} and ${futureDate.toISOString()}.`);
       return 0;
     }
 
-    // 2. Fetch "System Memory" (previous intelligence report)
+    // 3. Fetch "System Memory" (previous intelligence report)
     const lastIntelligence = await prisma.processedData.findFirst({
       where: {
         homeTeam: "Intelligence Summary" // Only get actual summaries, not fallback records if any exist
@@ -45,12 +57,12 @@ export class ProcessorAgent {
       orderBy: { createdAt: 'desc' }
     });
 
-    console.log(`Processor Agent: Found ${rawData.length} upcoming records. Preparing diverse data sample...`);
+    console.log(`Processor Agent: Found ${freshData.length} valid upcoming records. Preparing diverse data sample...`);
 
-    // 3. Deduplicate matches and build a diverse summary
-    const uniqueMatchesMap = new Map<string, typeof rawData[0]>();
+    // 4. Deduplicate matches and build a diverse summary
+    const uniqueMatchesMap = new Map<string, typeof freshData[0]>();
     
-    for (const match of rawData) {
+    for (const match of freshData) {
       const sig = getMatchSignature(match);
       if (uniqueMatchesMap.has(sig)) {
         // Match exists in multiple sources! Merge the source tags to highlight this cross-reference.
