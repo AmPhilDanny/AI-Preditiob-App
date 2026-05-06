@@ -13,9 +13,10 @@ export class ProcessorAgent {
   async processRawData(days: number = 2): Promise<number> {
     console.log(`Processor Agent: Starting AI-powered analysis for upcoming matches over the next ${days} days...`);
 
-    // 1. Fetch matches happening within our target window (including midnights)
-    const pastDate = new Date();
-    pastDate.setHours(pastDate.getHours() - 12); // Look back 12 hours to catch midnight/early morning games
+    // 1. Fetch matches happening from NOW onwards (upcoming games only)
+    const now = new Date();
+    // Round to the start of the current minute to be precise
+    now.setSeconds(0, 0);
 
     const futureDate = new Date();
     futureDate.setDate(futureDate.getDate() + days);
@@ -23,7 +24,7 @@ export class ProcessorAgent {
     const rawData = await prisma.scrapedData.findMany({
       where: {
         matchDate: {
-          gte: pastDate,
+          gte: now,
           lte: futureDate
         }
       },
@@ -32,7 +33,7 @@ export class ProcessorAgent {
     });
 
     if (rawData.length === 0) {
-      console.log(`Processor Agent: No upcoming matches found between ${pastDate.toISOString()} and ${futureDate.toISOString()}.`);
+      console.log(`Processor Agent: No upcoming matches found between ${now.toISOString()} and ${futureDate.toISOString()}.`);
       return 0;
     }
 
