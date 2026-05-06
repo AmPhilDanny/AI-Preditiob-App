@@ -105,12 +105,41 @@ SAMPLE OF MATCHES (TOP ${SAMPLE_LIMIT} MIXED CSV & API):
 ${matchSummary}
 
 ### 🎯 INSTRUCTIONS:
-Using the **System Memory** for context and the **New Match Data** for current opportunities:
-1. Identify high-value patterns emerging in today's/tomorrow's matches, contrasting CSV data with API data if applicable.
-2. Compare current odds with the trends noted in previous analysis.
-3. Provide a focused list of the TOP 10 recommendations for the upcoming 48 hours.
-4. Highlight any major shifts in league form or market behavior.
-5. Provide the output in a clear, highly analytical Markdown format.`;
+Using the **System Memory** for context and the **New Match Data** for current opportunities, provide a "Master Class" Intelligence Report in Markdown. 
+
+#### 📊 STRUCTURE YOUR REPORT AS FOLLOWS:
+
+1. **KEY MARKET TRENDS ACROSS MATCHES**
+   - **Odds Uniformity & Market Clarity**: Analyze if odds are balanced or skewed. Identify high draw probabilities or clear favorites.
+   - **League-Specific Observations**: Group trends by league (e.g. Liga MX, Botola Pro, etc.).
+   - **Notable Odds Patterns**: Highlight specific odds (Over 2.5, BTTS) and their implied probabilities.
+
+2. **LEAGUE-BY-LEAGUE BREAKDOWN**
+   - **High-Confidence Leagues**: Where favorites are most likely to deliver.
+   - **Low-Confidence Leagues**: High draw risk or unpredictable markets.
+   - **Goal Expectations**: Probability of BTTS and Over/Under per league based on the data.
+
+3. **TOP 15 RECOMMENDED BETS (Divided into Tiers)**
+   - **VIP (Top 3)**: The absolute best value picks with highest confidence (85%+).
+   - **Premium (Next 7)**: Strong picks with medium/high confidence (75-84%).
+   - **General (Remaining 5)**: Solid value picks with medium confidence (70-74%).
+   *For each bet, include a Markdown table or clean list with: Match, League, Date/Time, Market, Odds, Confidence Score (0-100), Risk Level, and Detailed Reasoning.*
+
+4. **OVERALL DATA QUALITY ASSESSMENT**
+   - Strengths and weaknesses of the current data sample.
+   - Recommendations for improvement (e.g. cross-referencing sources).
+
+5. **FINAL SUMMARY & BETTING STRATEGY**
+   - Best markets to target for the current period.
+   - Leagues/Teams to avoid.
+   - Strategic advice for maximizing profit.
+
+#### 📝 FORMATTING RULES:
+- Use clear **Markdown tables** for data breakdowns and recommendations.
+- Use **bold text** for key insights and headers.
+- Ensure the tone is professional, analytical, and highly data-driven.
+- **DIVERSITY**: Do not just pick "Home Win". Explore BTTS, Over/Under, and Double Chance.
+- **CONTRAST**: If a match has data from both CSV and API, highlight any discrepancies or reinforcements in the reasoning.`;
 
     // 4. Use AI to generate insights
     let aiSummary = '';
